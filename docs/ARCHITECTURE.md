@@ -64,19 +64,20 @@ Order matches the Long-Term Plan; each step must keep `show()` / tools / undo be
 | Option-box Close | Label stays **Close** (Maya-honest after Apply) |
 | Inline vs sheet | Keep inline quick fields; floating window = full settings |
 | Visual base | Maya UV Toolkit palette already in `COL` / `PANEL_QSS` |
-| Editable mock | Deferred until explicitly requested |
+| Editable mock | `docs/mockup/index.html` — live Design Controls + export JSON |
 
-## Improved code (intent)
+## Improved code (landed in 2.1.0)
 
-Consumer-visible work lands in M5c / tool registry:
+Consumer-visible work in M5 / M5c (branch `cursor/maya-uv-toolkit-ui-5f9c`):
 
-- Fix dead `_row_icons` code
-- Tooltips on every visible tool
-- Option-box icon on every tool with settings; Pack reachable from action bar with options
-- Stronger tab/section/action-bar/option-dialog QSS
-- Version / `BUILD_STAMP` bump
+- Fixed dead `_row_icons` duplicate; `Tool.has_options()` drives option-box icons
+- Tooltips on every registry tool; icons on common transform/align rows
+- Pack action-bar button gains option-box icon + right-click Options…
+- QSS for east tabs, section headers, counters, option dialog (Maya `COL` palette)
+- Option-box footer: **Reset | Apply | Accept (tool-named) | Close**
+- Bundle `2.1.0`, M5 `3.8.0`, M5c `4.3.0`
 
-Behavior of Apply / Accept / Close remains:
+Behavior of Apply / Accept / Close:
 
 - **Apply** — write settings, run tool, leave window open  
 - **Accept** — write settings, run tool, close window  
