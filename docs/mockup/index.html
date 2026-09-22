@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UV Studio — Editable UX Mock</title>
+  <style>
+    /* ============================================================
+       EDITABLE DESIGN TOKENS
+       Tweak these, or use the Design Controls panel (right edge).
+       ============================================================ */
+    :root {
+      --panel: #3a3a3a;
+      --section: #333333;
+      --control: #5a5a5a;
+      --control-hi: #666666;
+      --control-lo: #4c4c4c;
+      --field: #2b2b2b;
+      --field-bd: #232323;
+      --text: #d8d8d8;
+      --muted: #8f8f8f;
+      --border: #2a2a2a;
+      --accent: #5285a6;
+      --accent-lo: #456f8a;
+      --ok: #2d6a4f;
+      --warn: #b8860b;
+      --fail: #c0392b;
+
+      --font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      --font-size: 11px;
+      --row-h: 26px;
+      --radius: 2px;
+      --split-left: 62%;
+      --tools-width: 380px;
+      --tab-side: east; /* east | west | north — applied via [data-tabs] */
+      --density: comfortable; /* comfortable | compact */
+      --show-pivot: 1;
+      --show-counters: 1;
+      --show-action: 1;
+      --show-recipe-tab: 1;
+      --inline-fields: 1;
+      --icon-dense: 0;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      background: #1e1e1e;
+      color: var(--text);
+      font: var(--font-size)/1.35 var(--font);
+    }
+
+    /* ---- App chrome ---- */
+    .app {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      height: 100%;
+      gap: 0;
+    }
+    .stage {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 12px;
+      gap: 8px;
+    }
+    .stage-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 0 2px;
+    }
+    .stage-title h1 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--text);
+    }
+    .stage-title .hint {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    /* ---- Maya workspace window ---- */
+    .maya-window {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #4b4b4b;
+      border: 1px solid #1a1a1a;
+      border-radius: 3px;
+      overflow: hidden;
+      min-height: 0;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    }
+    .maya-titlebar {
+      height: 24px;
+      background: linear-gradient(#5a5a5a, #4a4a4a);
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 8px;
+      font-size: 11px;
+      color: #e8e8e8;
+      user-select: none;
+    }
+    .maya-titlebar .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #888;
+    }
+    .maya-titlebar .dot.close { background: #c75; }
+    .maya-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: var(--split-left) 1fr;
+      min-height: 0;
+    }
+
+    /* Left: UV Editor / Cluster Map */
+    .left-pane {
+      background: #2a2a2a;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .view-switch {
+      display: flex;
+      gap: 2px;
+      padding: 4px;
+      background: var(--section);
+      border-bottom: 1px solid var(--border);
+    }
+    .view-switch button {
+      flex: 1;
+      height: 22px;
+      border: 1px solid var(--control-lo);
+      background: var(--control);
+      color: var(--text);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font: inherit;
+    }
+    .view-switch button[aria-pressed="true"] {
+      background: var(--accent);
+      border-color: var(--accent-lo);
+    }
+    .uv-canvas {
+      flex: 1;
+      position: relative;
+      background:
+        linear-gradient(#333 1px, transparent 1px) 0 0 / 40px 40px,
+        linear-gradient(90deg, #333 1px, transparent 1px) 0 0 / 40px 40px,
+        #252525;
+      overflow: hidden;
+    }
+    .uv-canvas .tile-label {
+      position: absolute;
+      left: 12%; top: 10%;
+      color: #666;
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      pointer-events: none;
+      user-select: none;
+    }
+    .shell {
+      position: absolute;
+      border: 1px solid #7ab;
+      background: rgba(82, 133, 166, 0.22);
+    }
+    .shell.selected {
+      border-color: #9cf;
+      background: rgba(120, 180, 220, 0.35);
+      box-shadow: 0 0 0 1px rgba(150,200,255,0.35);
+    }
+    .shell.pinned::after {
+      content: "";
+      position: absolute;
+      width: 6px; height: 6px;
+      background: #e8c44a;
+      border-radius: 50%;
+      top: -3px; right: -3px;
+    }
+
+    /* Right: tools panel */
+    .tools {
+      background: var(--panel);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+    .verdict {
+      padding: 6px 8px;
+      font-size: 10px;
+      color: var(--ok);
+      border-bottom: 1px solid var(--border);
+      background: #323232;
+    }
+    .verdict.fail { color: var(--fail); }
+
+    .tools-main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    /* Tabs */
+    .tabs-rail {
+      display: flex;
+      background: var(--section);
+      border-left: 1px solid var(--border);
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      padding: 4px 0;
+      gap: 2px;
+    }
+    [data-tabs="west"] .tools-main { flex-direction: row-reverse; }
+    [data-tabs="west"] .tabs-rail {
+      border-left: none;
+      border-right: 1px solid var(--border);
+    }
+    [data-tabs="north"] .tools-main { flex-direction: column; }
+    [data-tabs="north"] .tabs-rail {
+      writing-mode: horizontal-tb;
+      transform: none;
+      flex-direction: row;
+      border-left: none;
+      border-bottom: 1px solid var(--border);
+      padding: 0 4px;
+    }
+    .tab-btn {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 6px;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+    [data-tabs="north"] .tab-btn { padding: 6px 10px; }
+    .tab-btn[aria-selected="true"] {
+      color: var(--text);
+      background: var(--panel);
+      box-shadow: inset 2px 0 0 var(--accent);
+    }
+    [data-tabs="north"] .tab-btn[aria-selected="true"] {
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .tab-pages {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .tab-page { display: none; flex: 1; flex-direction: column; min-height: 0; }
+    .tab-page.active { display: flex; }
+
+    .pivot {
+      display: none;
+      padding: 6px 8px;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: #363636;
+    }
+    [data-show-pivot="1"] .tab-page[data-has-pivot] .pivot { display: flex; }
+    .pivot-label { color: var(--muted); width: 36px; }
+    .pivot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 14px);
+      gap: 3px;
+    }
+    .pivot-grid span {
+      width: 14px; height: 14px;
+      border: 1px solid #777;
+      border-radius: 50%;
+      cursor: pointer;
+      background: var(--field);
+    }
+    .pivot-grid span.on {
+      background: var(--accent);
+      border-color: var(--accent-lo);
+    }
+    .pivot-modes { display: flex; gap: 3px; margin-left: auto; }
+    .pivot-modes button {
+      height: 20px;
+      padding: 0 6px;
+      border: 1px solid var(--control-lo);
+      background: var(--control);
+      color: var(--text);
+      border-radius: var(--radius);
+      font: inherit;
+      cursor: pointer;
+    }
+    .pivot-modes button.on { background: var(--accent); border-color: var(--accent-lo); }
+
+    .sections {
+      flex: 1;
+      overflow: auto;
+      padding: 0 0 8px;
+    }
+    .section { border-bottom: 1px solid var(--border); }
+    .section-h {
+      height: 22px;
+      background: var(--section);
+      border-top: 1px solid #444;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      gap: 4px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .section-h .chev { color: var(--muted); width: 12px; }
+    .section-h .name {
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+    .section-h .move { color: var(--muted); font-size: 9px; }
+    .section-b {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .section.collapsed .section-b { display: none; }
+    .section.collapsed .chev { transform: rotate(-90deg); display: inline-block; }
+
+    .tool-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: var(--row-h);
+    }
+    [data-density="compact"] {
+      --row-h: 22px;
+      --font-size: 10px;
+    }
+    .tool-btn {
+      height: calc(var(--row-h) + 6px);
+      min-width: 96px;
+      padding: 0 8px;
+      border: 1px solid var(--control-lo);
+      background: var(--control);
+      color: var(--text);
+      border-radius: var(--radius);
+      font: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .tool-btn:hover { background: var(--control-hi); }
+    .tool-btn:active { background: var(--control-lo); }
+    .tool-btn .ico {
+      width: 14px; height: 14px;
+      opacity: 0.9;
+      display: none;
+    }
+    [data-icon-dense="1"] .tool-btn .ico { display: inline-block; }
+    .field {
+      height: var(--row-h);
+      background: var(--field);
+      border: 1px solid var(--field-bd);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 0 4px;
+      font: inherit;
+      width: 62px;
+    }
+    .field.wide { width: 80px; flex: 1; max-width: 120px; }
+    .cap { color: var(--muted); }
+    .icon-btn {
+      width: var(--row-h);
+      height: var(--row-h);
+      border: 1px solid var(--control-lo);
+      background: var(--control);
+      border-radius: var(--radius);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 10px;
+    }
+    .icon-btn.option::before {
+      content: "";
+      width: 10px; height: 10px;
+      border: 1.2px solid currentColor;
+      background:
+        linear-gradient(currentColor, currentColor) center/10px 1.2px no-repeat;
+    }
+    [data-inline-fields="0"] .tool-row .inline { display: none !important; }
+
+    .counters {
+      display: none;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+      padding: 4px 6px;
+      border-top: 1px solid var(--border);
+    }
+    [data-show-counters="1"] .counters { display: grid; }
+    .counter {
+      text-align: center;
+      background: rgba(0,0,0,0.2);
+      border-radius: 3px;
+      padding: 4px 2px;
+      color: var(--muted);
+      line-height: 1.2;
+    }
+    .counter strong {
+      display: block;
+      color: #e0e0e0;
+      font-weight: 600;
+    }
+
+    .action-bar {
+      display: none;
+      gap: 4px;
+      padding: 4px 6px 6px;
+      border-top: 1px solid var(--border);
+    }
+    [data-show-action="1"] .action-bar { display: flex; }
+    .action-bar .tool-btn { flex: 1; min-width: 0; }
+    .action-bar .tool-btn.primary {
+      background: #3f6d8a;
+      color: #fff;
+      font-weight: 500;
+      flex: 2;
+    }
+    .action-pack {
+      display: flex;
+      flex: 2;
+      gap: 2px;
+    }
+    .action-pack .tool-btn.primary { flex: 1; }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px 6px;
+      border-top: 1px solid var(--border);
+    }
+    .status {
+      flex: 1;
+      color: var(--muted);
+      font-size: 10px;
+      min-height: 28px;
+    }
+    .status-row .tool-btn { min-width: 0; height: 22px; font-size: 10px; }
+
+    /* ---- Option box (floating) ---- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 40;
+    }
+    .option-box {
+      pointer-events: auto;
+      position: absolute;
+      width: 320px;
+      background: var(--panel);
+      border: 1px solid #1a1a1a;
+      border-radius: 3px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .option-box.open { display: flex; }
+    .option-box .ob-title {
+      padding: 10px 12px 4px;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .option-box .ob-blurb {
+      padding: 0 12px 8px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+    .option-box .ob-rule {
+      height: 1px;
+      background: var(--border);
+      margin: 0 0 4px;
+    }
+    .ob-group-h {
+      background: var(--section);
+      color: var(--text);
+      padding: 3px 8px;
+      font-weight: 600;
+      border-top: 1px solid #444;
+      margin-top: 4px;
+    }
+    .ob-grid {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 6px 8px;
+      padding: 8px 12px;
+      align-items: center;
+    }
+    .ob-grid label {
+      text-align: right;
+      color: var(--text);
+    }
+    .ob-foot {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+    }
+    .ob-foot .spacer { flex: 1; }
+    .ob-foot .tool-btn { min-width: 72px; }
+    .ob-foot .tool-btn.accept {
+      background: var(--accent);
+      border-color: var(--accent-lo);
+      color: #fff;
+      min-width: 96px;
+    }
+
+    /* ---- Design controls (editable UX) ---- */
+    .design {
+      background: #252525;
+      border-left: 1px solid #111;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .design header {
+      padding: 12px 14px 8px;
+      border-bottom: 1px solid #333;
+    }
+    .design header h2 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+    .design header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .design .body {
+      flex: 1;
+      overflow: auto;
+      padding: 10px 14px 16px;
+    }
+    .d-group {
+      margin-bottom: 14px;
+    }
+    .d-group h3 {
+      margin: 0 0 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9a9a9a;
+    }
+    .d-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 11px;
+    }
+    .d-row label { color: #c8c8c8; }
+    .d-row select, .d-row input[type="range"], .d-row input[type="color"] {
+      width: 120px;
+    }
+    .d-row select {
+      height: 24px;
+      background: #333;
+      color: var(--text);
+      border: 1px solid #444;
+      border-radius: 3px;
+    }
+    .d-row input[type="checkbox"] {
+      width: 14px; height: 14px;
+    }
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    .swatch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+    .swatch input { width: 28px; height: 22px; padding: 0; border: none; background: none; }
+    .design .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 14px;
+      border-top: 1px solid #333;
+    }
+    .design .actions button {
+      flex: 1;
+      min-width: 80px;
+      height: 28px;
+      border: 1px solid #444;
+      background: #3a3a3a;
+      color: var(--text);
+      border-radius: 3px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .design .actions button:hover { background: #454545; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      background: #1a1a1a;
+      color: #eee;
+      border: 1px solid #444;
+      padding: 8px 14px;
+      border-radius: 4px;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+
+    .note {
+      margin-top: 8px;
+      padding: 8px;
+      background: #2c2c2c;
+      border-left: 3px solid var(--accent);
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+    [contenteditable="true"]:focus {
+      outline: 1px dashed var(--accent);
+      outline-offset: 1px;
+    }
+  </style>
+</head>
+<body data-tabs="east" data-density="comfortable" data-show-pivot="1"
+      data-show-counters="1" data-show-action="1" data-inline-fields="1"
+      data-icon-dense="0">
+
+  <div class="app">
+    <div class="stage">
+      <div class="stage-title">
+        <h1 contenteditable="true">UV Studio</h1>
+        <span class="hint">Editable mock — click labels to rename · use Design Controls →</span>
+      </div>
+
+      <div class="maya-window" id="mayaWindow">
+        <div class="maya-titlebar">
+          <span class="dot close"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+          <span contenteditable="true">UV Studio</span>
+        </div>
+        <div class="maya-body">
+          <!-- LEFT: hosted UV Editor / Cluster Map -->
+          <div class="left-pane">
+            <div class="view-switch" role="tablist" aria-label="Map view">
+              <button type="button" aria-pressed="true" data-view="editor">Maya UV Editor</button>
+              <button type="button" aria-pressed="false" data-view="cluster">Cluster Map</button>
+            </div>
+            <div class="uv-canvas" id="uvCanvas" title="Placeholder UV view">
+              <div class="tile-label">1001</div>
+              <div class="shell" style="left:18%;top:22%;width:16%;height:28%"></div>
+              <div class="shell selected" style="left:38%;top:30%;width:22%;height:18%"></div>
+              <div class="shell pinned" style="left:55%;top:48%;width:14%;height:20%"></div>
+              <div class="shell" style="left:22%;top:55%;width:12%;height:14%"></div>
+              <div class="shell selected" style="left:64%;top:24%;width:18%;height:12%"></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: shared tools panel -->
+          <aside class="tools" id="toolsPanel">
+            <div class="verdict" id="verdict">UV EDITOR HOSTED · Maya 2024 · PySide2</div>
+            <div class="tools-main">
+              <div class="tab-pages">
+                <!-- Layout tab -->
+                <div class="tab-page active" data-tab="Layout" data-has-pivot>
+                  <div class="pivot">
+                    <span class="pivot-label">Pivot</span>
+                    <div class="pivot-grid" id="pivotGrid" title="Selection pivot">
+                      <span></span><span></span><span></span>
+                      <span></span><span class="on"></span><span></span>
+                      <span></span><span></span><span></span>
+                    </div>
+                    <div class="pivot-modes">
+                      <button type="button" class="on">Sel</button>
+                      <button type="button">Shell</button>
+                      <button type="button">UV</button>
+                    </div>
+                  </div>
+                  <div class="sections" data-page="Layout">
+                    <section class="section" data-name="Transform">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Transform</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row" data-tool="rotate">
+                          <button class="tool-btn" data-open-options="rotate" title="Rotate about the tab pivot"><svg class="ico" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" d="M3 8a5 5 0 1 1 5 5"/><path fill="currentColor" d="M3 8l2-3v2h3z"/></svg><span contenteditable="true">Rotate</span></button>
+                          <input class="field inline" value="90.0" title="Degrees" />
+                          <span class="cap inline">°</span>
+                          <span class="cap inline">snap</span>
+                          <button class="icon-btn inline" title="Step snap off">Off</button>
+                          <button class="icon-btn" title="Rotate +90°">↺</button>
+                          <button class="icon-btn" title="Rotate −90°">↻</button>
+                          <button class="icon-btn option" title="Rotate options…" data-open-options="rotate"></button>
+                        </div>
+                        <div class="tool-row" data-tool="scale">
+                          <button class="tool-btn" title="Scale about the tab pivot"><span contenteditable="true">Scale</span></button>
+                          <input class="field inline" value="2.0" />
+                          <button class="icon-btn inline" title="U axis">U</button>
+                          <button class="icon-btn inline" title="V axis">V</button>
+                          <button class="icon-btn option" title="Scale options…" data-open-options="scale"></button>
+                        </div>
+                        <div class="tool-row" data-tool="move">
+                          <button class="tool-btn" title="Offset by exact amount"><span contenteditable="true">Move</span></button>
+                          <input class="field inline" value="0.0" title="U" />
+                          <input class="field inline" value="0.0" title="V" />
+                          <button class="icon-btn inline" title="Nudge −U">◀</button>
+                          <button class="icon-btn inline" title="Nudge +U">▶</button>
+                          <button class="icon-btn inline" title="Nudge −V">▼</button>
+                          <button class="icon-btn inline" title="Nudge +V">▲</button>
+                          <button class="icon-btn option" title="Move options…" data-open-options="move"></button>
+                        </div>
+                        <div class="tool-row">
+                          <button class="tool-btn" title="Mirror horizontally"><span contenteditable="true">Flip U</span></button>
+                          <button class="tool-btn" title="Mirror vertically"><span contenteditable="true">Flip V</span></button>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="section" data-name="Align">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Align</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row">
+                          <button class="tool-btn" title="Align left edges"><span contenteditable="true">Align L</span></button>
+                          <button class="tool-btn" title="Align right edges"><span contenteditable="true">Align R</span></button>
+                          <button class="tool-btn" title="Align bottom edges"><span contenteditable="true">Align B</span></button>
+                          <button class="tool-btn" title="Align top edges"><span contenteditable="true">Align T</span></button>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="section" data-name="Distribute">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Distribute</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row">
+                          <button class="tool-btn"><span contenteditable="true">Distribute U</span></button>
+                          <span class="cap inline">gap</span>
+                          <input class="field inline" value="auto" />
+                          <button class="icon-btn option" data-open-options="distribute_u" title="Distribute U options…"></button>
+                        </div>
+                        <div class="tool-row">
+                          <button class="tool-btn"><span contenteditable="true">Distribute V</span></button>
+                          <span class="cap inline">gap</span>
+                          <input class="field inline" value="auto" />
+                          <button class="icon-btn option" data-open-options="distribute_v" title="Distribute V options…"></button>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="section collapsed" data-name="Orient">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Orient</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row">
+                          <button class="tool-btn"><span contenteditable="true">Orient Shells</span></button>
+                          <button class="tool-btn"><span contenteditable="true">Orient to Edge</span></button>
+                        </div>
+                        <div class="tool-row">
+                          <button class="tool-btn"><span contenteditable="true">Straighten (PCA)</span></button>
+                          <button class="icon-btn option" data-open-options="straighten_pca"></button>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+
+                <!-- Pack tab -->
+                <div class="tab-page" data-tab="Pack">
+                  <div class="sections">
+                    <section class="section" data-name="Pack">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Pack</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row">
+                          <button class="tool-btn" data-open-options="pack" title="UV Studio packer"><span contenteditable="true">Pack</span></button>
+                          <button class="icon-btn option" data-open-options="pack" title="Pack options…"></button>
+                        </div>
+                        <div class="note">options_only: settings live in the floating window (Maya dialog pattern).</div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+
+                <!-- Edit tab sample -->
+                <div class="tab-page" data-tab="Edit">
+                  <div class="sections">
+                    <section class="section" data-name="Cut & Sew">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Cut &amp; Sew</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row">
+                          <button class="tool-btn"><span contenteditable="true">Cut</span></button>
+                          <button class="tool-btn"><span contenteditable="true">Sew</span></button>
+                          <button class="tool-btn"><span contenteditable="true">Move and Sew</span></button>
+                        </div>
+                        <div class="tool-row">
+                          <button class="tool-btn" data-open-options="cut_tool"><span contenteditable="true">3D Cut and Sew UV Tool</span></button>
+                          <button class="icon-btn option" data-open-options="cut_tool"></button>
+                        </div>
+                      </div>
+                    </section>
+                    <section class="section" data-name="Unfold">
+                      <div class="section-h"><span class="chev">▾</span><span class="name" contenteditable="true">Unfold</span><span class="move">▲ ▼</span></div>
+                      <div class="section-b">
+                        <div class="tool-row">
+                          <button class="tool-btn" data-open-options="unfold"><span contenteditable="true">Unfold</span></button>
+                          <button class="icon-btn option" data-open-options="unfold" title="Unfold options…"></button>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+
+                <div class="tab-page" data-tab="Groups"><div class="sections"><div class="note" style="margin:8px">Groups / Pairs / Stacks tools (same row pattern).</div></div></div>
+                <div class="tab-page" data-tab="Density"><div class="sections"><div class="note" style="margin:8px">Get / Set density.</div></div></div>
+                <div class="tab-page" data-tab="Checks"><div class="sections"><div class="note" style="margin:8px">Overlaps · Flipped · Density · Bounds.</div></div></div>
+                <div class="tab-page" data-tab="Recipe"><div class="sections"><div class="note" style="margin:8px">Recipe list: toggle, reorder, replay (M4).</div></div></div>
+              </div>
+
+              <nav class="tabs-rail" id="tabsRail" aria-label="Tool tabs">
+                <button type="button" class="tab-btn" data-tab="Edit" aria-selected="false">Edit</button>
+                <button type="button" class="tab-btn" data-tab="Layout" aria-selected="true">Layout</button>
+                <button type="button" class="tab-btn" data-tab="Pack" aria-selected="false">Pack</button>
+                <button type="button" class="tab-btn" data-tab="Groups" aria-selected="false">Groups</button>
+                <button type="button" class="tab-btn" data-tab="Density" aria-selected="false">Density</button>
+                <button type="button" class="tab-btn" data-tab="Checks" aria-selected="false">Checks</button>
+                <button type="button" class="tab-btn recipe-tab" data-tab="Recipe" aria-selected="false">Recipe</button>
+              </nav>
+            </div>
+
+            <div class="counters" id="counters">
+              <div class="counter"><strong>42</strong>units</div>
+              <div class="counter"><strong>8</strong>pairs</div>
+              <div class="counter"><strong>3</strong>stacks</div>
+              <div class="counter"><strong>5</strong>fixed</div>
+            </div>
+
+            <div class="action-bar" id="actionBar">
+              <button class="tool-btn" title="Count units / pairs / stacks">Analyze</button>
+              <button class="tool-btn" title="Solve without moving">Preview pack</button>
+              <div class="action-pack">
+                <button class="tool-btn primary" data-open-options="pack" title="Pack (writes)">Pack</button>
+                <button class="icon-btn option" data-open-options="pack" title="Pack options…"></button>
+              </div>
+              <button class="tool-btn" title="Find overlapping shells">Overlaps</button>
+            </div>
+
+            <div class="status-row">
+              <div class="status" id="status">Ready. Click an option-box icon to open Apply / Accept / Close.</div>
+              <button class="tool-btn" type="button">Reset order</button>
+              <button class="tool-btn" type="button">Copy report</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design Controls: the editable UX surface -->
+    <aside class="design" id="designPanel">
+      <header>
+        <h2>Design Controls</h2>
+        <p>Live UX knobs for this mock. Changes stay in the browser (localStorage). Export JSON when you want to hand a layout decision back to engineering.</p>
+      </header>
+      <div class="body">
+        <div class="d-group">
+          <h3>Layout</h3>
+          <div class="d-row">
+            <label for="tabSide">Tab strip</label>
+            <select id="tabSide">
+              <option value="east">East (Maya)</option>
+              <option value="west">West</option>
+              <option value="north">North</option>
+            </select>
+          </div>
+          <div class="d-row">
+            <label for="splitLeft">UV Editor width</label>
+            <input id="splitLeft" type="range" min="40" max="75" value="62" />
+          </div>
+          <div class="d-row">
+            <label for="density">Density</label>
+            <select id="density">
+              <option value="comfortable">Comfortable</option>
+              <option value="compact">Compact</option>
+            </select>
+          </div>
+          <div class="d-row">
+            <label for="iconDense">Icon-dense tool buttons</label>
+            <input id="iconDense" type="checkbox" />
+          </div>
+          <div class="d-row">
+            <label for="inlineFields">Show inline fields</label>
+            <input id="inlineFields" type="checkbox" checked />
+          </div>
+        </div>
+
+        <div class="d-group">
+          <h3>Chrome</h3>
+          <div class="d-row"><label for="showPivot">Pivot strip</label><input id="showPivot" type="checkbox" checked /></div>
+          <div class="d-row"><label for="showCounters">Counters</label><input id="showCounters" type="checkbox" checked /></div>
+          <div class="d-row"><label for="showAction">Action bar</label><input id="showAction" type="checkbox" checked /></div>
+          <div class="d-row"><label for="showRecipe">Recipe tab</label><input id="showRecipe" type="checkbox" checked /></div>
+        </div>
+
+        <div class="d-group">
+          <h3>Palette (Maya base)</h3>
+          <div class="swatches">
+            <label class="swatch">Panel <input type="color" data-token="panel" value="#3a3a3a" /></label>
+            <label class="swatch">Section <input type="color" data-token="section" value="#333333" /></label>
+            <label class="swatch">Control <input type="color" data-token="control" value="#5a5a5a" /></label>
+            <label class="swatch">Field <input type="color" data-token="field" value="#2b2b2b" /></label>
+            <label class="swatch">Text <input type="color" data-token="text" value="#d8d8d8" /></label>
+            <label class="swatch">Accent <input type="color" data-token="accent" value="#5285a6" /></label>
+          </div>
+        </div>
+
+        <div class="d-group">
+          <h3>Option box demo</h3>
+          <div class="d-row">
+            <label>Open sample</label>
+            <button type="button" id="openPackOptions" style="height:24px;background:#3a3a3a;border:1px solid #555;color:#ddd;border-radius:3px;cursor:pointer">Pack Options…</button>
+          </div>
+          <div class="note">
+            <strong style="color:#ddd">Apply</strong> — write + run, leave open<br/>
+            <strong style="color:#ddd">Accept</strong> — tool-named primary: write + run + close<br/>
+            <strong style="color:#ddd">Close</strong> — discard edits since last Apply
+          </div>
+        </div>
+
+        <div class="d-group">
+          <h3>Notes for UX pass</h3>
+          <textarea id="uxNotes" rows="5" placeholder="Write layout decisions here…"
+            style="width:100%;background:#1f1f1f;border:1px solid #444;color:#ddd;border-radius:3px;padding:8px;font:inherit;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="btnExport">Export JSON</button>
+        <button type="button" id="btnImport">Import JSON</button>
+        <button type="button" id="btnReset">Reset defaults</button>
+        <button type="button" id="btnCopyNotes">Copy notes</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="option-box" id="optionBox" style="left:42%; top:18%">
+      <div class="ob-title" id="obTitle">Pack Options</div>
+      <div class="ob-blurb" id="obBlurb">UV Studio packer. Honours pins and moves units together.</div>
+      <div class="ob-rule"></div>
+      <div id="obBody"></div>
+      <div class="ob-foot">
+        <button type="button" class="tool-btn" id="obReset" title="Restore defaults">Reset</button>
+        <span class="spacer"></span>
+        <button type="button" class="tool-btn" id="obApply" title="Apply settings and run. Leaves this open.">Apply</button>
+        <button type="button" class="tool-btn accept" id="obAccept" title="Apply, run, and close.">Pack</button>
+        <button type="button" class="tool-btn" id="obClose" title="Close without applying edits since last Apply.">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden />
+
+  <script>
+    const TOOL_SHEETS = {
+      pack: {
+        title: "Pack Options",
+        accept: "Pack",
+        blurb: "UV Studio packer. Honours pins and moves units together.",
+        groups: [
+          { name: "Pack Settings", fields: [
+            { label: "Shell Distribution", type: "select", options: ["area","height","perimeter"], value: "area" }
+          ]},
+          { name: "Shell Transform Settings", fields: [
+            { label: "Rotate Shells", type: "check", value: true }
+          ]},
+          { name: "Shell Pre-Transform Settings", fields: [
+            { label: "Straighten first", type: "check", value: true }
+          ]},
+          { name: "Layout Settings", fields: [
+            { label: "Scale to Fit", type: "check", value: false },
+            { label: "Tiles", type: "text", value: "1001" },
+            { label: "Shell Padding", type: "text", value: "0.002" },
+            { label: "Overflow to more tiles", type: "check", value: true }
+          ]}
+        ]
+      },
+      rotate: {
+        title: "Rotate Options", accept: "Rotate",
+        blurb: "Rotate the selection about the pivot set at the top of the tab.",
+        groups: [{ name: "Settings", fields: [
+          { label: "Degrees", type: "text", value: "90.0" },
+          { label: "Step Snap", type: "check", value: false },
+          { label: "Snap step", type: "text", value: "15.0" }
+        ]}]
+      },
+      scale: {
+        title: "Scale Options", accept: "Scale",
+        blurb: "Scale the selection about the tab's pivot.",
+        groups: [{ name: "Settings", fields: [
+          { label: "Factor", type: "text", value: "2.0" },
+          { label: "Axis U", type: "check", value: true },
+          { label: "Axis V", type: "check", value: true },
+          { label: "Prevent negative scale", type: "check", value: true }
+        ]}]
+      },
+      move: {
+        title: "Move Options", accept: "Move",
+        blurb: "Offset the selection by an exact amount.",
+        groups: [{ name: "Settings", fields: [
+          { label: "U", type: "text", value: "0.0" },
+          { label: "V", type: "text", value: "0.0" },
+          { label: "Step Snap", type: "check", value: false }
+        ]}]
+      },
+      unfold: {
+        title: "Unfold Options", accept: "Unfold",
+        blurb: "Unfold3D solver. Honours pinned UVs.",
+        groups: [
+          { name: "Settings", fields: [{ label: "Fix non-manifold geometry", type: "check", value: true }]},
+          { name: "Solver Options", fields: [
+            { label: "Iterations", type: "text", value: "1" },
+            { label: "Layout UVs", type: "check", value: false },
+            { label: "Prevent self border intersections", type: "check", value: true },
+            { label: "Prevent triangle flips", type: "check", value: true }
+          ]},
+          { name: "Room Space Options", fields: [
+            { label: "Map size (Pixels)", type: "text", value: "1024" },
+            { label: "Room space (Pixels)", type: "text", value: "0" }
+          ]}
+        ]
+      },
+      cut_tool: {
+        title: "3D Cut and Sew UV Tool Options", accept: "3D Cut and Sew UV Tool",
+        blurb: "Interactive cut-and-sew brush.",
+        groups: [{ name: "Brush", fields: [
+          { label: "Steady Stroke", type: "check", value: false },
+          { label: "Distance", type: "text", value: "4.0" },
+          { label: "Symmetry", type: "select", options: ["Off","World X","World Y","World Z"], value: "Off" },
+          { label: "Loop Speed", type: "text", value: "1" }
+        ]}]
+      },
+      distribute_u: {
+        title: "Distribute U Options", accept: "Distribute U",
+        blurb: "Space shells along U.",
+        groups: [{ name: "Settings", fields: [{ label: "Gap", type: "text", value: "auto" }]}]
+      },
+      distribute_v: {
+        title: "Distribute V Options", accept: "Distribute V",
+        blurb: "Space shells along V.",
+        groups: [{ name: "Settings", fields: [{ label: "Gap", type: "text", value: "auto" }]}]
+      },
+      straighten_pca: {
+        title: "Straighten (PCA) Options", accept: "Straighten (PCA)",
+        blurb: "Rotate each shell so its long axis lies along U.",
+        groups: [{ name: "Settings", fields: [{ label: "Snap (degrees)", type: "text", value: "0.0" }]}]
+      }
+    };
+
+    const root = document.documentElement;
+    const body = document.body;
+    const status = document.getElementById("status");
+    const toastEl = document.getElementById("toast");
+    const optionBox = document.getElementById("optionBox");
+    let dirtySinceApply = false;
+    let lastApplied = null;
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      clearTimeout(toastEl._t);
+      toastEl._t = setTimeout(() => toastEl.classList.remove("show"), 1600);
+    }
+
+    function setStatus(msg) { status.textContent = msg; }
+
+    /* ---- Tabs ---- */
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.tab;
+        document.querySelectorAll(".tab-btn").forEach(b => b.setAttribute("aria-selected", b === btn ? "true" : "false"));
+        document.querySelectorAll(".tab-page").forEach(p => p.classList.toggle("active", p.dataset.tab === id));
+      });
+    });
+
+    /* ---- Sections collapse ---- */
+    document.querySelectorAll(".section-h").forEach(h => {
+      h.addEventListener("click", (e) => {
+        if (e.target.closest("[contenteditable]")) return;
+        h.parentElement.classList.toggle("collapsed");
+      });
+    });
+
+    /* ---- View switch ---- */
+    document.querySelectorAll(".view-switch button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".view-switch button").forEach(b => b.setAttribute("aria-pressed", b === btn ? "true" : "false"));
+        setStatus(btn.dataset.view === "cluster" ? "Cluster Map (mock)." : "Maya UV Editor (hosted panel mock).");
+      });
+    });
+
+    /* ---- Pivot ---- */
+    document.querySelectorAll(".pivot-grid span").forEach(dot => {
+      dot.addEventListener("click", () => {
+        document.querySelectorAll(".pivot-grid span").forEach(d => d.classList.remove("on"));
+        dot.classList.add("on");
+      });
+    });
+    document.querySelectorAll(".pivot-modes button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".pivot-modes button").forEach(b => b.classList.remove("on"));
+        btn.classList.add("on");
+      });
+    });
+
+    /* ---- Option box ---- */
+    function renderSheet(id) {
+      const sheet = TOOL_SHEETS[id] || TOOL_SHEETS.pack;
+      document.getElementById("obTitle").textContent = sheet.title;
+      document.getElementById("obBlurb").textContent = sheet.blurb;
+      document.getElementById("obAccept").textContent = sheet.accept;
+      const bodyEl = document.getElementById("obBody");
+      bodyEl.innerHTML = "";
+      sheet.groups.forEach(g => {
+        if (g.name) {
+          const h = document.createElement("div");
+          h.className = "ob-group-h";
+          h.textContent = g.name;
+          bodyEl.appendChild(h);
+        }
+        const grid = document.createElement("div");
+        grid.className = "ob-grid";
+        g.fields.forEach(f => {
+          const lab = document.createElement("label");
+          lab.textContent = f.label + ":";
+          grid.appendChild(lab);
+          let ctrl;
+          if (f.type === "check") {
+            ctrl = document.createElement("input");
+            ctrl.type = "checkbox";
+            ctrl.checked = !!f.value;
+          } else if (f.type === "select") {
+            ctrl = document.createElement("select");
+            ctrl.className = "field wide";
+            f.options.forEach(o => {
+              const opt = document.createElement("option");
+              opt.value = o; opt.textContent = o;
+              if (o === f.value) opt.selected = true;
+              ctrl.appendChild(opt);
+            });
+          } else {
+            ctrl = document.createElement("input");
+            ctrl.className = "field wide";
+            ctrl.value = f.value;
+          }
+          ctrl.addEventListener("input", () => { dirtySinceApply = true; });
+          ctrl.addEventListener("change", () => { dirtySinceApply = true; });
+          grid.appendChild(ctrl);
+        });
+        bodyEl.appendChild(grid);
+      });
+      dirtySinceApply = false;
+      lastApplied = id;
+    }
+
+    function openOptions(id, anchor) {
+      renderSheet(id);
+      optionBox.classList.add("open");
+      if (anchor) {
+        const r = anchor.getBoundingClientRect();
+        const w = optionBox.offsetWidth || 320;
+        let left = Math.min(window.innerWidth - w - 16, r.right + 8);
+        let top = Math.max(12, Math.min(window.innerHeight - 80, r.top));
+        optionBox.style.left = left + "px";
+        optionBox.style.top = top + "px";
+      }
+      setStatus("Options open: " + (TOOL_SHEETS[id]?.title || id));
+    }
+
+    function closeOptions(apply) {
+      if (!apply && dirtySinceApply) {
+        setStatus("Closed. Edits since last Apply were discarded.");
+      } else if (!apply) {
+        setStatus("Closed.");
+      }
+      optionBox.classList.remove("open");
+      dirtySinceApply = false;
+    }
+
+    document.querySelectorAll("[data-open-options]").forEach(el => {
+      el.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openOptions(el.getAttribute("data-open-options"), el);
+      });
+    });
+
+    document.getElementById("obApply").addEventListener("click", () => {
+      dirtySinceApply = false;
+      setStatus("Apply: settings written, tool ran, window stayed open.");
+      toast("Applied — window stays open");
+    });
+    document.getElementById("obAccept").addEventListener("click", () => {
+      dirtySinceApply = false;
+      setStatus("Accept: settings written, tool ran, window closed.");
+      toast("Accepted — closed");
+      optionBox.classList.remove("open");
+    });
+    document.getElementById("obClose").addEventListener("click", () => closeOptions(false));
+    document.getElementById("obReset").addEventListener("click", () => {
+      if (lastApplied) renderSheet(lastApplied);
+      setStatus("Reset to defaults (mock).");
+    });
+    document.getElementById("openPackOptions").addEventListener("click", () => openOptions("pack"));
+
+    /* drag option box */
+    (function () {
+      const title = document.getElementById("obTitle");
+      let ox = 0, oy = 0, dragging = false;
+      title.style.cursor = "move";
+      title.addEventListener("mousedown", (e) => {
+        dragging = true;
+        ox = e.clientX - optionBox.offsetLeft;
+        oy = e.clientY - optionBox.offsetTop;
+        e.preventDefault();
+      });
+      window.addEventListener("mousemove", (e) => {
+        if (!dragging) return;
+        optionBox.style.left = (e.clientX - ox) + "px";
+        optionBox.style.top = (e.clientY - oy) + "px";
+      });
+      window.addEventListener("mouseup", () => { dragging = false; });
+    })();
+
+    /* ---- Design controls ---- */
+    const controls = {
+      tabSide: document.getElementById("tabSide"),
+      splitLeft: document.getElementById("splitLeft"),
+      density: document.getElementById("density"),
+      iconDense: document.getElementById("iconDense"),
+      inlineFields: document.getElementById("inlineFields"),
+      showPivot: document.getElementById("showPivot"),
+      showCounters: document.getElementById("showCounters"),
+      showAction: document.getElementById("showAction"),
+      showRecipe: document.getElementById("showRecipe"),
+      uxNotes: document.getElementById("uxNotes")
+    };
+
+    function applyDesign(state) {
+      body.dataset.tabs = state.tabSide;
+      body.dataset.density = state.density;
+      body.dataset.iconDense = state.iconDense ? "1" : "0";
+      body.dataset.inlineFields = state.inlineFields ? "1" : "0";
+      body.dataset.showPivot = state.showPivot ? "1" : "0";
+      body.dataset.showCounters = state.showCounters ? "1" : "0";
+      body.dataset.showAction = state.showAction ? "1" : "0";
+      root.style.setProperty("--split-left", state.splitLeft + "%");
+      document.querySelectorAll(".recipe-tab").forEach(t => {
+        t.style.display = state.showRecipe ? "" : "none";
+      });
+      if (state.tokens) {
+        Object.entries(state.tokens).forEach(([k, v]) => {
+          root.style.setProperty("--" + k, v);
+          const input = document.querySelector('input[data-token="' + k + '"]');
+          if (input) input.value = v;
+        });
+      }
+      controls.tabSide.value = state.tabSide;
+      controls.splitLeft.value = state.splitLeft;
+      controls.density.value = state.density;
+      controls.iconDense.checked = !!state.iconDense;
+      controls.inlineFields.checked = !!state.inlineFields;
+      controls.showPivot.checked = !!state.showPivot;
+      controls.showCounters.checked = !!state.showCounters;
+      controls.showAction.checked = !!state.showAction;
+      controls.showRecipe.checked = !!state.showRecipe;
+      if (state.uxNotes != null) controls.uxNotes.value = state.uxNotes;
+    }
+
+    function readDesign() {
+      const tokens = {};
+      document.querySelectorAll("input[data-token]").forEach(inp => {
+        tokens[inp.dataset.token] = inp.value;
+      });
+      return {
+        version: 1,
+        product: "UV Studio",
+        tabSide: controls.tabSide.value,
+        splitLeft: Number(controls.splitLeft.value),
+        density: controls.density.value,
+        iconDense: controls.iconDense.checked,
+        inlineFields: controls.inlineFields.checked,
+        showPivot: controls.showPivot.checked,
+        showCounters: controls.showCounters.checked,
+        showAction: controls.showAction.checked,
+        showRecipe: controls.showRecipe.checked,
+        tokens,
+        uxNotes: controls.uxNotes.value
+      };
+    }
+
+    function persist() {
+      const state = readDesign();
+      localStorage.setItem("uvstudio.mock.design", JSON.stringify(state));
+      applyDesign(state);
+    }
+
+    Object.values(controls).forEach(el => {
+      el.addEventListener("input", persist);
+      el.addEventListener("change", persist);
+    });
+    document.querySelectorAll("input[data-token]").forEach(inp => {
+      inp.addEventListener("input", persist);
+    });
+
+    document.getElementById("btnExport").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(readDesign(), null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "uv-studio-mock-design.json";
+      a.click();
+      toast("Exported design JSON");
+    });
+
+    document.getElementById("btnImport").addEventListener("click", () => {
+      document.getElementById("importFile").click();
+    });
+    document.getElementById("importFile").addEventListener("change", (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const state = JSON.parse(reader.result);
+          applyDesign(state);
+          localStorage.setItem("uvstudio.mock.design", JSON.stringify(state));
+          toast("Imported design JSON");
+        } catch (err) {
+          toast("Invalid JSON");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById("btnReset").addEventListener("click", () => {
+      localStorage.removeItem("uvstudio.mock.design");
+      location.reload();
+    });
+
+    document.getElementById("btnCopyNotes").addEventListener("click", async () => {
+      const text = controls.uxNotes.value || "(no notes)";
+      try {
+        await navigator.clipboard.writeText(text);
+        toast("Notes copied");
+      } catch {
+        toast("Could not copy — select notes manually");
+      }
+    });
+
+    /* restore */
+    try {
+      const saved = localStorage.getItem("uvstudio.mock.design");
+      if (saved) applyDesign(JSON.parse(saved));
+      else applyDesign(readDesign());
+    } catch {
+      applyDesign(readDesign());
+    }
+
+    // Dev/screenshot helper: ?open=pack|rotate|…
+    const openParam = new URLSearchParams(location.search).get("open");
+    if (openParam && TOOL_SHEETS[openParam]) {
+      setTimeout(() => openOptions(openParam), 80);
+    }
+  </script>
+</body>
+</html>
