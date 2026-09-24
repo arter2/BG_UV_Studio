@@ -24,7 +24,3 @@ Same file is also saved as `UV-Studio-Layout-Designer.html` for download/sharing
 - **+ Icon/Tool**, **+ Section**, **+ Note**, **Clear tab**, **Reset all**
 
 When the layout is final, export JSON and send it to turn into real Qt panel code.
-
-## Legacy modular prototype
-
-The earlier multi-file prototype (`js/uv-designer.js`, `js/uv-spec.json`) is kept for reference but is **not** the served app anymore.
