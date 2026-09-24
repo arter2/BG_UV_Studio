@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Layout Studio — lightweight wireframe canvas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <span class="brand">Layout Studio</span>
+        <select id="import-layout" aria-label="Import from menu layout"></select>
+        <div class="tool-group">
+          <button type="button" id="btn-group" title="Group (⌘G)">Group</button>
+          <button type="button" id="btn-ungroup" title="Ungroup (⌘⇧G)">
+            Ungroup
+          </button>
+          <button type="button" id="btn-delete" title="Delete">Delete</button>
+        </div>
+        <div class="tool-group">
+          <button type="button" id="btn-save">Save</button>
+          <button type="button" id="btn-export">Export JSON</button>
+        </div>
+        <span class="muted" style="margin-left: auto; font-size: 12px">
+          ⌘C / ⌘V · ⌘D duplicate · L lock · [ ] layer · Alt-drag pan · ⌘ scroll zoom
+        </span>
+      </header>
+
+      <div class="main">
+        <aside class="sidebar left">
+          <h3>Add elements</h3>
+          <div class="add-tools">
+            <button type="button" data-add="panel">Panel</button>
+            <button type="button" data-add="block">Block</button>
+            <button type="button" data-add="text">Text label</button>
+            <button type="button" data-add="textfield">Text field</button>
+            <button type="button" data-add="linebreak">Line break</button>
+          </div>
+          <h3>Common UI icons</h3>
+          <input
+            id="icon-search"
+            type="search"
+            placeholder="Search icons…"
+            autocomplete="off"
+          />
+          <div class="sidebar-scroll" id="icon-library"></div>
+        </aside>
+
+        <div class="canvas-wrap">
+          <div id="canvas" tabindex="0">
+            <div id="canvas-inner"></div>
+          </div>
+        </div>
+
+        <aside class="sidebar right">
+          <h3>Inspector</h3>
+          <div class="sidebar-scroll" id="props-panel">
+            <p class="muted">Select an object to edit.</p>
+          </div>
+          <h3>Layers</h3>
+          <div class="sidebar-scroll" id="layers-list"></div>
+        </aside>
+
+        <footer class="statusbar" id="status">Ready</footer>
+      </div>
+    </div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
