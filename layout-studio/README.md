@@ -1,6 +1,6 @@
 # UV Studio — Layout Designer
 
-Browser-based panel layout editor for **BG UV Studio**. Blocks match the real tool registry in `uvstudio_v5_1.py` (67 tools across Edit, Layout, Pack, Groups, Density, Checks, Debug).
+Official **single-file** layout editor from the Claude artifact. No build step.
 
 ## Quick start
 
@@ -9,29 +9,22 @@ cd layout-studio
 python3 -m http.server 8765
 ```
 
-Open http://localhost:8765
+Open http://localhost:8765 (serves `index.html`).
 
-## Workflow
+Same file is also saved as `UV-Studio-Layout-Designer.html` for download/sharing.
 
-1. Pick a **panel tab** on the left — the canvas shows that tab’s sections and tool buttons plus shared viewport / action bar.
-2. **Drag** blocks to move; drag the **bottom-right corner** to resize.
-3. **Double-click** a label to rename in place.
-4. Toggle **Snap to grid** and **Zoom** in the header.
-5. Layout **autosaves** in your browser (`localStorage`).
-6. Click **Export layout** and send the JSON — it can be turned into real Qt panel code.
+## Features (from the artifact)
 
-## Selected item inspector
+- Full UV Studio tool registry (`TOOL_DEFS`) with tab/section layout per **Edit**, **Layout**, **Pack**, **Groups**, **Density**, **Checks**, **Debug**, **Recipe**, **Env**, **Cmds**, **Log**
+- **Viewport**, **tools panel content area**, vertical **tab bar**, **action bar**, **pivot strip** (Layout tab)
+- Snap to grid, zoom, light/dark/auto **theme**
+- Drag, resize (corner handle), double-click rename, per-tab editing
+- **Export layout** / **Import** modal with copy and **Load a file…**
+- Autosave in `localStorage` (`uvstudio_layout_designer_v1`)
+- **+ Icon/Tool**, **+ Section**, **+ Note**, **Clear tab**, **Reset all**
 
-Label, X, Y, W, H (and color). **Load a file…** restores a prior export.
+When the layout is final, export JSON and send it to turn into real Qt panel code.
 
-## Extra tools
+## Legacy modular prototype
 
-Icons, lock, and z-order live under **Extra tools** in the left sidebar. ⌘/Ctrl+C and ⌘/Ctrl+V copy and paste blocks.
-
-## Files
-
-| File | Role |
-|------|------|
-| `js/uv-spec.json` | Tool/tab data extracted from UV Studio |
-| `js/uv-designer.js` | Layout designer app |
-| `js/icons.js` | Optional common UI icons |
+The earlier multi-file prototype (`js/uv-designer.js`, `js/uv-spec.json`) is kept for reference but is **not** the served app anymore.
