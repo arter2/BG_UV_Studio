@@ -95,7 +95,7 @@
   }
   #topbar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
   #topbar .spacer { flex: 1 1 auto; }
-  button.btn {
+  button.btn, select.btn {
     font: inherit;
     background: var(--tool-fill);
     color: var(--text);
@@ -105,7 +105,8 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  button.btn:hover { background: var(--tool-hover); }
+  select.btn { padding: 5px 8px; max-width: 200px; }
+  button.btn:hover, select.btn:hover { background: var(--tool-hover); }
   button.btn.primary { background: var(--accent); border-color: var(--accent-lo); color: #fff; }
   button.btn.primary:hover { filter: brightness(1.07); }
   button.btn.danger { color: var(--danger); }
@@ -145,7 +146,10 @@
     cursor: grab;
   }
   .box:active { cursor: grabbing; }
-  .box.selected { outline: 2px solid var(--accent); outline-offset: 1px; z-index: 30; }
+  .box.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .box.locked { pointer-events: none; }
+  .box.locked .handle { display: none; }
+  .box.hidden-item { display: none; }
   .box .lbl {
     width: 100%; height: 100%;
     display: flex; align-items: center; justify-content: center;
@@ -157,7 +161,11 @@
     pointer-events: none;
     font-size: 12px;
   }
-  .box .icon { font-size: 13px; pointer-events: none; }
+  .box .lbl .txt[contenteditable="true"] {
+    outline: 1px solid var(--accent); border-radius: 3px; padding: 0 3px;
+    user-select: text; -webkit-user-select: text; cursor: text; min-width: 20px;
+  }
+  .box .icon { font-size: 1.1em; pointer-events: none; }
   .box .handle {
     position: absolute; right: -5px; bottom: -5px;
     width: 16px; height: 16px;
@@ -180,7 +188,6 @@
   .box.section {
     background: var(--section-fill);
     border: 1px dashed var(--section-line);
-    z-index: 1;
     cursor: grab;
   }
   .box.section .lbl {
@@ -197,7 +204,6 @@
   .box.viewport {
     background: var(--viewport-fill);
     border: 1.5px solid var(--line-hi);
-    z-index: 0;
   }
   .box.viewport .lbl {
     align-items: flex-start; justify-content: flex-start;
@@ -216,13 +222,11 @@
   .box.contentarea {
     background: var(--panel-2);
     border: 1px solid var(--line);
-    z-index: 0;
   }
 
   .box.actionbar {
     background: var(--actionbar-fill);
     border: 1px solid var(--line);
-    z-index: 0;
   }
   .box.actionbtn {
     background: var(--accent-soft);
@@ -249,9 +253,50 @@
   :root[data-theme="dark"] .box.note { background: #3a3320; border-color: #6b5a2a; color: #e8d38a; }
   :root[data-theme="light"] .box.note { background: #fff6d8; border-color: #e3c862; color: #7a6110; }
 
+  .box.text { background: transparent; border: 1px dashed transparent; color: var(--text); }
+  .box.text:hover { border-color: var(--line-hi); }
+  .box.text .lbl { justify-content: flex-start; font-size: 14px; font-weight: 600; }
+
+  .box.textfield { background: var(--tool-fill); border: 1px solid var(--tool-line); border-radius: 6px; color: var(--muted); }
+  .box.textfield .lbl { justify-content: flex-start; padding: 2px 10px; }
+  .box.textfield::after {
+    content: ""; position: absolute; right: 8px; top: 50%; width: 6px; height: 6px;
+    border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+    transform: translateY(-50%) rotate(-45deg); opacity: 0; pointer-events: none;
+  }
+
+  .box.block { background: var(--panel-2); border: 1px solid var(--line-hi); color: var(--muted); }
+  .box.block .lbl { font-weight: 600; }
+
+  .box.divider { background: transparent; border-radius: 3px; }
+  .box.divider:hover { background: var(--accent-soft); }
+  .box.divider .line {
+    position: absolute; left: 0; right: 0; top: 50%; height: 2px;
+    transform: translateY(-50%); background: var(--line-hi); border-radius: 1px; pointer-events: none;
+  }
+  .box.divider.vertical .line { left: 50%; right: auto; top: 0; bottom: 0; width: 2px; height: auto; transform: translateX(-50%); }
+  .box.divider .lbl { display: none; }
+
+  .box.iconbox { background: var(--tool-fill); border: 1px solid var(--tool-line); color: var(--text); }
+  .box.iconbox .lbl { padding: 0; }
+  .box.iconbox .lbl .txt { display: none; }
+
+  .marquee {
+    position: absolute; border: 1px solid var(--accent); background: var(--accent-soft);
+    pointer-events: none; z-index: 99999;
+  }
+  .groupframe {
+    position: absolute; border: 1.5px dashed var(--accent); border-radius: 10px;
+    pointer-events: none; z-index: 99998;
+  }
+  .groupframe::before {
+    content: "Group"; position: absolute; top: -17px; left: 0;
+    font-size: 10px; font-weight: 700; color: var(--accent);
+  }
+
   /* ---------- Right rail ---------- */
   #rail {
-    flex: 0 0 260px;
+    flex: 0 0 290px;
     background: var(--panel);
     border-left: 1px solid var(--line);
     padding: 10px;
@@ -259,16 +304,21 @@
     overflow-y: auto;
     display: flex; flex-direction: column; gap: 10px;
   }
-  #rail h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 4px 0 2px; }
+  #rail h2, #rail summary { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 4px 0 2px; font-weight: 700; }
+  #rail summary { cursor: pointer; }
   #rail .hint { font-size: 12px; color: var(--muted); line-height: 1.4; }
   #selBox { display: flex; flex-direction: column; gap: 6px; }
-  #selBox input, #selBox select {
+  #selBox input, #selBox select, #rail input[type=search] {
     font: inherit; background: var(--tool-fill); color: var(--text);
     border: 1px solid var(--tool-line); border-radius: 6px; padding: 6px 8px; width: 100%;
   }
+  #selBox input[type=color] { padding: 2px; height: 30px; cursor: pointer; }
   #selBox .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   #selBox .grid4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+  #selBox .grid4 button.btn { padding: 6px 0; }
   #selBox label.f { font-size: 11px; color: var(--muted); display: block; margin-bottom: 2px; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 4px; }
+  .swatches button { width: 20px; height: 20px; border-radius: 4px; border: 1px solid var(--line-hi); cursor: pointer; padding: 0; }
   #tabList { display: flex; flex-direction: column; gap: 3px; }
   #tabList button {
     text-align: left; font: inherit; background: transparent; color: var(--text);
@@ -276,6 +326,53 @@
   }
   #tabList button:hover { background: var(--tool-hover); }
   #tabList button.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-lo); font-weight: 600; }
+
+  #iconGrid {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px;
+    max-height: 210px; overflow-y: auto; margin-top: 6px;
+  }
+  #iconGrid button {
+    font: inherit; font-size: 15px; aspect-ratio: 1; padding: 0;
+    background: var(--tool-fill); border: 1px solid var(--tool-line); border-radius: 5px;
+    color: var(--text); cursor: pointer; overflow: hidden;
+  }
+  #iconGrid button:hover { background: var(--accent-soft); border-color: var(--accent-lo); }
+
+  .rowbtns { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+  .rowbtns .btn { padding: 4px 8px; font-size: 12px; }
+  #layerList { display: flex; flex-direction: column; gap: 1px; max-height: 300px; overflow-y: auto; }
+  .layer { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 5px; cursor: pointer; font-size: 12px; }
+  .layer:hover { background: var(--tool-hover); }
+  .layer.active { background: var(--accent-soft); color: var(--accent); }
+  .layer .ic { width: 16px; text-align: center; flex: 0 0 auto; }
+  .layer .nm { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .layer .kd { color: var(--muted); font-size: 10px; flex: 0 0 auto; }
+  .layer button { background: transparent; border: 0; cursor: pointer; font-size: 12px; opacity: .3; padding: 0 2px; color: var(--text); }
+  .layer button.on { opacity: 1; }
+  .layer.is-hidden .nm { opacity: .45; text-decoration: line-through; }
+
+  #ctx {
+    position: fixed; display: none; z-index: 200; min-width: 210px; padding: 4px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  #ctx button {
+    display: flex; justify-content: space-between; width: 100%; text-align: left;
+    background: transparent; border: 0; color: var(--text); font: inherit;
+    padding: 6px 10px; border-radius: 5px; cursor: pointer;
+  }
+  #ctx button:hover:not(:disabled) { background: var(--tool-hover); }
+  #ctx button:disabled { opacity: .4; cursor: default; }
+  #ctx .k { color: var(--muted); font-size: 11px; margin-left: 16px; }
+  #ctx hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(8px);
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
+    padding: 7px 14px; border-radius: 8px; font-size: 12px; opacity: 0; pointer-events: none;
+    transition: opacity .15s, transform .15s; z-index: 300;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   #exportModal {
     position: fixed; inset: 0; background: rgba(0,0,0,0.5);
@@ -310,10 +407,24 @@
   <button class="btn primary" id="btnAddTool">+ Icon/Tool</button>
   <button class="btn" id="btnAddSection">+ Section</button>
   <button class="btn" id="btnAddNote">+ Note</button>
+  <select class="btn" id="selInsert" title="Insert a layout element">
+    <option value="">+ Insert…</option>
+    <option value="text">T  Text label</option>
+    <option value="textfield">⌶  Text field</option>
+    <option value="block">■  Block</option>
+    <option value="divider_h">—  Line break</option>
+    <option value="divider_v">|  Vertical divider</option>
+    <option value="iconbox">★  Icon</option>
+  </select>
+  <select class="btn" id="selAddFrom" title="Copy a tool from any tab's layout onto this tab"></select>
+  <select class="btn" id="selSendTo" title="Copy or move the selection to another tab"></select>
+  <div class="sep"></div>
+  <button class="btn" id="btnUndo" title="Undo (Ctrl+Z)">↶</button>
+  <button class="btn" id="btnRedo" title="Redo (Ctrl+Shift+Z)">↷</button>
   <div class="sep"></div>
   <label class="chk"><input type="checkbox" id="chkSnap" checked> Snap to grid</label>
   <div id="zoomRow">
-    Zoom <input type="range" id="zoomSlider" min="50" max="150" value="100"> <span id="zoomVal">100%</span>
+    Zoom <input type="range" id="zoomSlider" min="25" max="200" value="100"> <span id="zoomVal">100%</span>
   </div>
   <div class="sep"></div>
   <button class="btn" id="btnTheme">Theme</button>
@@ -341,18 +452,59 @@
       <div id="selBox">
         <div class="hint" id="selEmpty">Click any icon, button, section, tab or the viewport to edit it here — or just drag it on the canvas.</div>
         <div id="selFields" style="display:none;">
+          <div class="hint" id="selInfo"></div>
           <label class="f">Label</label>
           <input type="text" id="selLabel">
+          <div class="grid2">
+            <div><label class="f">Icon</label><input type="text" id="selIcon" placeholder="none"></div>
+            <div><label class="f">Font size</label><input type="number" id="selFont" min="6" max="96" placeholder="auto"></div>
+          </div>
           <div class="grid4">
             <div><label class="f">X</label><input type="number" id="selX"></div>
             <div><label class="f">Y</label><input type="number" id="selY"></div>
             <div><label class="f">W</label><input type="number" id="selW"></div>
             <div><label class="f">H</label><input type="number" id="selH"></div>
           </div>
-          <button class="btn danger" id="btnDeleteSel">Delete this item</button>
+          <div class="grid2">
+            <div><label class="f">Fill</label><input type="color" id="selFill"></div>
+            <div><label class="f">Text</label><input type="color" id="selColor"></div>
+          </div>
+          <div class="swatches" id="swatches"></div>
+          <button class="btn" id="btnResetColor">Reset colors</button>
+          <label class="f">Arrange</label>
+          <div class="grid4">
+            <button class="btn" id="btnFront" title="Bring to front (Ctrl+])">⤒</button>
+            <button class="btn" id="btnForward" title="Bring forward (])">↑</button>
+            <button class="btn" id="btnBackward" title="Send backward ([)">↓</button>
+            <button class="btn" id="btnBack" title="Send to back (Ctrl+[)">⤓</button>
+          </div>
+          <div class="grid2">
+            <button class="btn" id="btnGroup" title="Group (Ctrl+G)">Group</button>
+            <button class="btn" id="btnUngroup" title="Ungroup (Ctrl+Shift+G)">Ungroup</button>
+            <button class="btn" id="btnLock" title="Lock / unlock (Ctrl+Shift+L)">Lock</button>
+            <button class="btn" id="btnDup" title="Duplicate (Ctrl+D)">Duplicate</button>
+          </div>
+          <button class="btn danger" id="btnDeleteSel">Delete</button>
         </div>
       </div>
     </div>
+
+    <details open>
+      <summary>UI icons</summary>
+      <input type="search" id="iconSearch" placeholder="Search icons (home, save, lock…)">
+      <label class="chk" style="margin-top:6px;"><input type="checkbox" id="chkIconApply"> Set on selected item instead of adding</label>
+      <div id="iconGrid"></div>
+    </details>
+
+    <details open>
+      <summary>Layers</summary>
+      <div class="rowbtns">
+        <button class="btn" id="btnLockFrames" title="Lock viewport, content area and action bar so clicks pass through them">Lock frames</button>
+        <button class="btn" id="btnUnlockAll">Unlock all</button>
+        <button class="btn" id="btnShowAll">Show all</button>
+      </div>
+      <div id="layerList"></div>
+    </details>
 
     <div>
       <h2>How this works</h2>
@@ -361,10 +513,17 @@
         Drag anywhere to move. Drag the bottom-right corner to resize. Double-click a label to rename it in place.
         Switch tabs on the left to lay out each one separately — your changes autosave in this browser.
         When you're happy, hit <b>Export layout</b> and send me the JSON — I'll turn it into real panel code.
+        <br><br>
+        <b>Select:</b> Shift-click adds to the selection. Drag on empty canvas (or on an unselected frame) to box-select. Ctrl/⌘-click picks one item inside a group. Right-click for more.<br>
+        <b>Lock</b> the background frames (Layers → Lock frames) so clicks go through them.<br>
+        <b>Keys:</b> Ctrl/⌘+C / V / X copy, paste, cut (works across tabs) · D duplicate · G group · Shift+G ungroup · Shift+L lock · ] [ forward/backward · Ctrl+] [ front/back · arrows nudge · Z undo · Ctrl+scroll zoom.
       </div>
     </div>
   </div>
 </div>
+
+<div id="ctx"></div>
+<div id="toast"></div>
 
 <div id="exportModal">
   <div class="card">
@@ -486,6 +645,73 @@
   ];
 
   var STORAGE_KEY = "uvstudio_layout_designer_v1";
+  var CLIP_KEY = "uvstudio_layout_designer_clipboard_v1";
+
+  var KIND_NAME = {
+    viewport:"Viewport", contentarea:"Content area", actionbar:"Action bar", section:"Section",
+    pivot:"Pivot strip", note:"Note", tool:"Tool", actionbtn:"Action", tabbtn:"Tab",
+    text:"Text", textfield:"Text field", block:"Block", divider:"Line", iconbox:"Icon"
+  };
+  var KIND_GLYPH = {
+    viewport:"▭", contentarea:"▭", actionbar:"▬", section:"▢", pivot:"⊹", note:"▤", tool:"▪",
+    actionbtn:"▣", tabbtn:"⎍", text:"T", textfield:"⌶", block:"■", divider:"—", iconbox:"★"
+  };
+  // Stacking before anything is reordered: frames at the bottom, containers above
+  // them, then controls. An item's own z (set by Arrange) overrides this.
+  var DEFAULT_Z = {
+    viewport:0, contentarea:0, actionbar:0, section:1, pivot:2, note:2, block:2,
+    tool:4, actionbtn:4, tabbtn:4, textfield:4, text:5, divider:5, iconbox:5
+  };
+  // Big background boxes: dragging on one that isn't selected box-selects what's
+  // on top of it instead of moving it, so it doesn't steal every click.
+  var FRAME_KINDS = {viewport:true, contentarea:true, actionbar:true};
+
+  var INSERT_DEFS = {
+    tool:      {kind:"tool", label:"New Tool", icon:"★", w:96, h:30},
+    section:   {kind:"section", label:"New Section", w:300, h:100},
+    note:      {kind:"note", label:"Note / placeholder", icon:"▤", w:200, h:60},
+    text:      {kind:"text", label:"Text label", w:160, h:32},
+    textfield: {kind:"textfield", label:"Type here…", w:220, h:32},
+    block:     {kind:"block", label:"Content block", w:240, h:120},
+    divider_h: {kind:"divider", label:"Line break", w:320, h:16},
+    divider_v: {kind:"divider", label:"Vertical divider", w:16, h:200},
+    iconbox:   {kind:"iconbox", label:"Icon", icon:"★", w:40, h:40}
+  };
+
+  var SWATCHES = ["#2f333c","#24272e","#3b4252","#5aa2ff","#2f6fd1","#35c48a",
+                  "#e5b53a","#ff8a3d","#ff6b6b","#b07cff","#ffffff","#000000"];
+
+  var UI_ICONS = [
+    ["⌂","home"],["☰","menu hamburger"],["⋯","more horizontal"],["⋮","more vertical"],
+    ["✕","close x cancel"],["✓","check ok done"],["＋","plus add new"],["－","minus remove"],
+    ["🔍","search find magnify"],["⚙","settings gear options"],["👤","user profile account"],["👥","users team people"],
+    ["🔔","bell notification alert"],["✉","mail envelope email"],["💬","chat comment message"],["ℹ","info information"],
+    ["⚠","warning caution"],["⛔","error stop blocked"],["❓","help question"],["★","star favourite"],
+    ["♥","heart like"],["⚑","flag report"],["🔖","bookmark"],["🏷","tag label"],
+    ["✎","edit pencil rename"],["🖌","brush paint"],["✂","scissors cut"],["⧉","copy duplicate"],
+    ["📋","clipboard paste"],["🗑","trash delete bin"],["💾","save disk"],["📁","folder directory"],
+    ["📄","file document page"],["⬇","download"],["⬆","upload"],["⟳","refresh reload sync"],
+    ["↶","undo"],["↷","redo"],["🔗","link chain"],["⤴","share export"],
+    ["▶","play run start"],["⏸","pause"],["⏹","stop"],["⏺","record"],
+    ["⏮","previous back"],["⏭","next skip"],["🔊","volume sound"],["🔇","mute"],
+    ["👁","eye visible show view"],["🙈","hidden hide invisible"],["🔒","lock locked"],["🔓","unlock unlocked"],
+    ["🔑","key password"],["🛡","shield security"],["📌","pin"],["📍","location map marker"],
+    ["←","arrow left"],["→","arrow right"],["↑","arrow up"],["↓","arrow down"],
+    ["❮","chevron left"],["❯","chevron right"],["⌃","chevron up caret"],["⌄","chevron down caret dropdown"],
+    ["⇅","sort order"],["⏷","dropdown filter"],["▦","grid tiles"],["≡","list lines"],
+    ["◧","layers panel sidebar"],["⊞","window tiles"],["⛶","fullscreen maximize"],["⤢","expand resize scale"],
+    ["⊕","zoom in"],["⊖","zoom out"],["◎","target focus"],["⌖","crosshair pivot"],
+    ["✥","move drag"],["↻","rotate"],["⇋","flip mirror"],["🧲","magnet snap"],
+    ["🖼","image picture"],["📷","camera photo"],["🎬","video film"],["🎵","music audio"],
+    ["🎤","microphone voice"],["📊","chart stats graph"],["📅","calendar date"],["🕒","clock time history"],
+    ["☁","cloud"],["🌐","globe web language"],["☀","sun light theme"],["☾","moon dark theme"],
+    ["⚡","bolt lightning fast"],["✨","sparkles magic auto"],["🐞","bug debug"],["⌨","keyboard shortcut"],
+    ["</>","code developer"],["🖥","monitor display screen"],["🔋","battery"],["📶","signal wifi"],
+    ["⏻","power"],["🛒","cart shop"],["◯","circle"],["▢","square"],
+    ["△","triangle"],["◆","diamond"],["⬛","cube block"],["⠿","drag handle grip"]
+  ];
+
+  var MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
 
   // ============================================================
   // 2. Default layout generation (flow-layout, then freely draggable)
@@ -550,6 +776,7 @@
       sections: sections,
       items: items,
       extra: extra,
+      shapes: [],
       contentH: Math.max(y + 10, 120)
     };
   }
@@ -591,8 +818,23 @@
   }
 
   // ============================================================
-  // 3. State load/save
+  // 3. State load/save + undo history
   // ============================================================
+  // Layouts exported before shapes/groups/locks existed still load.
+  function migrate(s) {
+    TAB_ORDER.forEach(function(id){
+      if (!s.tabs[id]) s.tabs[id] = buildDefaultTab(id, s.contentArea);
+    });
+    Object.keys(s.tabs).forEach(function(k){
+      var t = s.tabs[k];
+      t.items = t.items || []; t.sections = t.sections || [];
+      t.extra = t.extra || []; t.shapes = t.shapes || [];
+    });
+    s.actionBar.items = s.actionBar.items || [];
+    s.tabBar.items = s.tabBar.items || [];
+    return s;
+  }
+
   var state = loadState();
 
   function loadState() {
@@ -600,7 +842,7 @@
       var raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         var parsed = JSON.parse(raw);
-        if (parsed && parsed.tabs && parsed.tabBar) return parsed;
+        if (parsed && parsed.tabs && parsed.tabBar) return migrate(parsed);
       }
     } catch (e) { /* ignore, fall through to default */ }
     return buildDefaultState();
@@ -615,87 +857,153 @@
     }, 200);
   }
 
+  var hist = [], hIdx = -1, HIST_MAX = 150;
+  function commit() {
+    saveState();
+    var s = JSON.stringify(state);
+    if (hist[hIdx] === s) return;
+    hist = hist.slice(0, hIdx + 1);
+    hist.push(s);
+    if (hist.length > HIST_MAX) hist.shift();
+    hIdx = hist.length - 1;
+    updateButtons();
+  }
+  function restoreSnapshot(s) {
+    // View settings are not part of the design, so undo leaves them alone.
+    var keep = {zoom: state.zoom, snap: state.snap, theme: state.theme};
+    state = migrate(JSON.parse(s));
+    state.zoom = keep.zoom; state.snap = keep.snap; state.theme = keep.theme;
+    sel = [];
+    render();
+    saveState();
+  }
+  function undo() { if (hIdx > 0) { hIdx--; restoreSnapshot(hist[hIdx]); toast("Undo"); } }
+  function redo() { if (hIdx < hist.length - 1) { hIdx++; restoreSnapshot(hist[hIdx]); toast("Redo"); } }
+
   // ============================================================
   // 4. Rendering
   // ============================================================
   var canvas = document.getElementById("canvas");
   var stage = document.getElementById("stage");
-  var selectedEl = null, selectedRef = null;
+  var entries = [], nodeOf = new Map(), entryOf = new Map();
+  var sel = [], drag = null, clipboard = null, pasteCount = 0, ctxPt = null;
 
-  function el(tag, cls) { var e = document.createElement("div"); if (cls) e.className = cls; return e; }
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls) { var e = document.createElement(tag || "div"); if (cls) e.className = cls; return e; }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+  function curTab() { return state.tabs[state.activeTab]; }
+  function isSel(r) { return sel.indexOf(r) >= 0; }
+
+  function zRef(r) {
+    if (r.z !== undefined && r.z !== null) return r.z;
+    var e = entryOf.get(r);
+    return e && DEFAULT_Z[e.kind] !== undefined ? DEFAULT_Z[e.kind] : 3;
+  }
+  function maxZ() { var m = 0; entries.forEach(function(e){ m = Math.max(m, zRef(e.ref)); }); return m; }
+  function minZ() { var m = 0; entries.forEach(function(e){ m = Math.min(m, zRef(e.ref)); }); return m; }
+  function overlaps(a, b) { return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h; }
 
   function applyGeom(node, g) {
+    if (!node) return;
     node.style.left = g.x + "px";
     node.style.top = g.y + "px";
     node.style.width = g.w + "px";
     node.style.height = g.h + "px";
   }
 
-  function makeBox(kind, ref, extraCls) {
-    var node = el("div", "box " + kind + (extraCls ? " " + extraCls : ""));
-    applyGeom(node, ref);
-    var lbl = el("div", "lbl");
-    if (ref.icon) {
-      var ic = el("span", "icon"); ic.textContent = ref.icon; lbl.appendChild(ic);
+  function applyLook(node, entry) {
+    var ref = entry.ref;
+    var fillTarget = entry.kind === "divider" ? node.querySelector(".line") : node;
+    fillTarget.style.background = ref.fill || "";
+    node.style.color = ref.color || "";
+    var lbl = node.querySelector(".lbl");
+    lbl.style.fontSize = ref.fontSize ? ref.fontSize + "px" : "";
+    if (entry.kind === "iconbox") {
+      var ic = node.querySelector(".icon");
+      if (ic) ic.style.fontSize = (ref.fontSize || Math.max(10, Math.round(Math.min(ref.w, ref.h) * 0.5))) + "px";
     }
-    var txt = document.createElement("span");
-    txt.textContent = ref.label;
-    lbl.appendChild(txt);
-    node.appendChild(lbl);
-    var handle = el("div", "handle");
-    node.appendChild(handle);
-    node._ref = ref;
-    node._kind = kind;
-    wireInteractions(node, handle, ref);
-    return node;
   }
 
-  function render() {
-    canvas.innerHTML = "";
-    canvas.style.transform = "scale(" + (state.zoom/100) + ")";
-
-    // viewport
-    canvas.appendChild(makeBox("viewport", state.viewport));
-
-    // content area frame (the "tab area" itself — draggable & resizable)
-    var ca = state.contentArea;
-    canvas.appendChild(makeBox("contentarea", ca));
-
-    var tab = state.tabs[state.activeTab];
+  function collectEntries() {
+    var out = [];
+    function add(list, kind) {
+      list.forEach(function(r){ out.push({ref: r, kind: r.kind || kind, list: list}); });
+    }
+    out.push({ref: state.viewport, kind: "viewport", list: null});
+    out.push({ref: state.contentArea, kind: "contentarea", list: null});
+    var tab = curTab();
     if (tab) {
       if (tab.pivot) {
         if (tab.pivot.label === undefined) {
           tab.pivot.label = "Pivot strip (top-left / centre / top-right / …)";
           tab.pivot.icon = "⊹";
         }
-        canvas.appendChild(makeBox("pivot", tab.pivot));
+        out.push({ref: tab.pivot, kind: "pivot", list: null});
       }
-      tab.sections.forEach(function(s){ canvas.appendChild(makeBox("section", s)); });
-      tab.items.forEach(function(t){ canvas.appendChild(makeBox("tool", t)); });
-      (tab.extra || []).forEach(function(x){
-        if (x.icon === undefined) x.icon = "▤";
-        canvas.appendChild(makeBox("note", x));
-      });
+      add(tab.sections, "section");
+      add(tab.items, "tool");
+      (tab.extra || []).forEach(function(x){ if (x.icon === undefined) x.icon = "▤"; });
+      add(tab.extra, "note");
+      add(tab.shapes, "block");
     }
+    out.push({ref: state.actionBar.box, kind: "actionbar", list: null});
+    add(state.actionBar.items, "actionbtn");
+    add(state.tabBar.items, "tabbtn");
+    return out;
+  }
 
-    // action bar
-    var ab = state.actionBar;
-    canvas.appendChild(makeBox("actionbar", ab.box));
-    ab.items.forEach(function(a){ canvas.appendChild(makeBox("actionbtn", a)); });
+  function makeBox(entry) {
+    var ref = entry.ref, kind = entry.kind;
+    var cls = "box " + kind;
+    if (kind === "tabbtn" && ref.tab === state.activeTab) cls += " active";
+    if (kind === "divider" && ref.h > ref.w) cls += " vertical";
+    if (ref.locked) cls += " locked";
+    if (ref.hidden) cls += " hidden-item";
+    var node = el("div", cls);
+    applyGeom(node, ref);
+    node.style.zIndex = String(zRef(ref));
+    if (kind === "divider") node.appendChild(el("div", "line"));
+    var lbl = el("div", "lbl");
+    if (ref.icon) {
+      var ic = el("span", "icon"); ic.textContent = ref.icon; lbl.appendChild(ic);
+    }
+    var txt = el("span", "txt");
+    txt.textContent = ref.label;
+    lbl.appendChild(txt);
+    node.appendChild(lbl);
+    if (kind === "iconbox" || kind === "divider") node.title = ref.label || "";
+    var handle = el("div", "handle");
+    node.appendChild(handle);
+    node._entry = entry;
+    applyLook(node, entry);
+    wireInteractions(node, handle, entry);
+    return node;
+  }
 
-    // tab bar
-    var tb = state.tabBar;
-    tb.items.forEach(function(t){
-      var cls = (t.tab === state.activeTab) ? "active" : "";
-      canvas.appendChild(makeBox("tabbtn", t, cls));
+  function render() {
+    canvas.innerHTML = "";
+    canvas.style.transform = "scale(" + (state.zoom/100) + ")";
+    entries = collectEntries();
+    nodeOf = new Map(); entryOf = new Map();
+    entries.forEach(function(e, i){ e.order = i; entryOf.set(e.ref, e); });
+    var sorted = entries.slice().sort(function(a, b){
+      return (zRef(a.ref) - zRef(b.ref)) || (a.order - b.order);
     });
-
+    sorted.forEach(function(e){
+      var n = makeBox(e);
+      nodeOf.set(e.ref, n);
+      canvas.appendChild(n);
+    });
+    sel = sel.filter(function(r){ return entryOf.has(r); });
     renderTabList();
-    restoreSelection();
+    renderLayers();
+    buildAddFrom();
+    buildSendTo();
+    refreshSelection();
   }
 
   function renderTabList() {
-    var list = document.getElementById("tabList");
+    var list = $("tabList");
     list.innerHTML = "";
     TAB_ORDER.forEach(function(id){
       var b = document.createElement("button");
@@ -703,7 +1011,6 @@
       if (id === state.activeTab) b.className = "active";
       b.addEventListener("click", function(){
         state.activeTab = id;
-        selectedRef = null; selectedEl = null;
         render();
         saveState();
       });
@@ -712,39 +1019,174 @@
   }
 
   // ============================================================
-  // 5. Drag + resize (pointer events — mouse & touch)
+  // 5. Selection
+  // ============================================================
+  function expandGroup(ref) {
+    if (!ref.group) return [ref];
+    return entries.filter(function(e){ return e.ref.group === ref.group && !e.ref.hidden; })
+                  .map(function(e){ return e.ref; });
+  }
+  function setSel(refs) { sel = refs.slice(); refreshSelection(); }
+
+  function refreshSelection() {
+    nodeOf.forEach(function(n, r){ n.classList.toggle("selected", isSel(r)); });
+    updateGroupFrames();
+    updateSelFields();
+    Array.prototype.forEach.call($("layerList").children, function(row){
+      row.classList.toggle("active", isSel(row._ref));
+    });
+    updateButtons();
+  }
+
+  function updateGroupFrames() {
+    Array.prototype.slice.call(canvas.querySelectorAll(".groupframe")).forEach(function(n){ n.remove(); });
+    var gids = {};
+    sel.forEach(function(r){ if (r.group) gids[r.group] = true; });
+    Object.keys(gids).forEach(function(g){
+      var m = entries.filter(function(e){ return e.ref.group === g && !e.ref.hidden; });
+      if (m.length < 2) return;
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      m.forEach(function(e){
+        var r = e.ref;
+        x0 = Math.min(x0, r.x); y0 = Math.min(y0, r.y);
+        x1 = Math.max(x1, r.x + r.w); y1 = Math.max(y1, r.y + r.h);
+      });
+      var f = el("div", "groupframe");
+      applyGeom(f, {x: x0 - 5, y: y0 - 5, w: x1 - x0 + 10, h: y1 - y0 + 10});
+      canvas.appendChild(f);
+    });
+  }
+
+  function cssHex(node, prop, fallback) {
+    if (!node) return fallback;
+    var v = getComputedStyle(node)[prop];
+    var m = v && v.match(/rgba?\(([^)]+)\)/);
+    if (!m) return fallback;
+    var p = m[1].split(/[ ,/]+/).filter(Boolean).map(parseFloat);
+    if (p.length > 3 && p[3] < 0.2) return fallback;
+    return "#" + p.slice(0, 3).map(function(x){ return ("0" + Math.round(x).toString(16)).slice(-2); }).join("");
+  }
+
+  function setField(id, value) {
+    var f = $(id);
+    if (document.activeElement !== f) f.value = value;
+  }
+
+  function updateSelFields() {
+    var fields = $("selFields"), empty = $("selEmpty");
+    if (!sel.length) {
+      empty.style.display = "block";
+      fields.style.display = "none";
+      return;
+    }
+    empty.style.display = "none";
+    fields.style.display = "flex";
+    fields.style.flexDirection = "column";
+    fields.style.gap = "6px";
+    var r = sel[0], e = entryOf.get(r), node = nodeOf.get(r);
+    var info;
+    if (sel.length > 1) {
+      var g = r.group && sel.every(function(x){ return x.group === r.group; });
+      info = sel.length + " items selected" + (g ? " · group" : "");
+    } else {
+      info = KIND_NAME[e.kind] + (r.group ? " · in a group" : "") + (r.locked ? " · locked" : "");
+    }
+    $("selInfo").textContent = info;
+    setField("selLabel", r.label || "");
+    setField("selIcon", r.icon || "");
+    setField("selFont", r.fontSize || "");
+    setField("selX", Math.round(r.x));
+    setField("selY", Math.round(r.y));
+    setField("selW", Math.round(r.w));
+    setField("selH", Math.round(r.h));
+    var fillNode = e.kind === "divider" && node ? node.querySelector(".line") : node;
+    setField("selFill", r.fill || cssHex(fillNode, "backgroundColor", "#2f333c"));
+    setField("selColor", r.color || cssHex(node, "color", "#e7e8ec"));
+  }
+
+  function updateButtons() {
+    $("btnUndo").disabled = hIdx <= 0;
+    $("btnRedo").disabled = hIdx >= hist.length - 1;
+    var allLocked = sel.length && sel.every(function(r){ return r.locked; });
+    $("btnLock").textContent = allLocked ? "Unlock" : "Lock";
+    $("btnGroup").disabled = sel.length < 2;
+    $("btnUngroup").disabled = !sel.some(function(r){ return r.group; });
+  }
+
+  // ============================================================
+  // 6. Drag, resize, box-select (pointer events — mouse & touch)
   // ============================================================
   var GRID = 8;
   function snapVal(v) { return state.snap ? Math.round(v / GRID) * GRID : Math.round(v); }
 
-  function wireInteractions(node, handle, ref) {
-    var dragging = null, resizing = null;
+  function canvasPoint(e) {
+    var r = canvas.getBoundingClientRect(), z = state.zoom / 100;
+    return {x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z};
+  }
+
+  function wireInteractions(node, handle, entry) {
+    var ref = entry.ref, resizing = null;
 
     node.addEventListener("pointerdown", function(e){
-      if (e.target === handle) return;
+      if (e.button !== 0) { e.stopPropagation(); return; }
+      if (e.target === handle || e.target.isContentEditable) return;
       e.stopPropagation();
-      select(node, ref);
+      hideCtx();
+      var deep = e.metaKey || e.ctrlKey;
+      if (FRAME_KINDS[entry.kind] && !isSel(ref) && !deep) { startMarquee(e, ref); return; }
+      if (e.shiftKey) {
+        var grp = expandGroup(ref);
+        if (isSel(ref)) {
+          sel = sel.filter(function(r){ return grp.indexOf(r) < 0; });
+          refreshSelection();
+          return;
+        }
+        sel = sel.concat(grp.filter(function(r){ return !isSel(r); }));
+      } else if (deep) {
+        sel = [ref];
+      } else if (!isSel(ref)) {
+        sel = expandGroup(ref);
+      }
+      refreshSelection();
       node.setPointerCapture(e.pointerId);
-      dragging = {startX: e.clientX, startY: e.clientY, ox: ref.x, oy: ref.y, zoom: state.zoom/100};
+      drag = {
+        node: node, primary: ref, startX: e.clientX, startY: e.clientY,
+        zoom: state.zoom / 100, moved: false,
+        starts: sel.filter(function(r){ return !r.locked; }).map(function(r){ return {ref: r, x: r.x, y: r.y}; })
+      };
     });
     node.addEventListener("pointermove", function(e){
-      if (!dragging) return;
-      var dx = (e.clientX - dragging.startX) / dragging.zoom;
-      var dy = (e.clientY - dragging.startY) / dragging.zoom;
-      ref.x = snapVal(dragging.ox + dx);
-      ref.y = snapVal(dragging.oy + dy);
-      applyGeom(node, ref);
+      if (!drag || drag.node !== node) return;
+      var dx = (e.clientX - drag.startX) / drag.zoom;
+      var dy = (e.clientY - drag.startY) / drag.zoom;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 2) return;
+      drag.moved = true;
+      var p = drag.starts.filter(function(s){ return s.ref === drag.primary; })[0] || drag.starts[0];
+      if (!p) return;
+      // Snap the grabbed item, then move the rest by the same amount so a
+      // multi-selection keeps its spacing.
+      var ddx = snapVal(p.x + dx) - p.x, ddy = snapVal(p.y + dy) - p.y;
+      drag.starts.forEach(function(s){
+        s.ref.x = s.x + ddx; s.ref.y = s.y + ddy;
+        applyGeom(nodeOf.get(s.ref), s.ref);
+      });
       updateSelFields();
+      updateGroupFrames();
     });
-    function endDrag(e){
-      if (dragging) { dragging = null; saveState(); }
+    function endDrag() {
+      if (drag && drag.node === node) {
+        var moved = drag.moved;
+        drag = null;
+        if (moved) commit();
+      }
     }
     node.addEventListener("pointerup", endDrag);
     node.addEventListener("pointercancel", endDrag);
 
     handle.addEventListener("pointerdown", function(e){
+      if (e.button !== 0) return;
       e.stopPropagation();
-      select(node, ref);
+      if (!isSel(ref)) setSel([ref]);
       handle.setPointerCapture(e.pointerId);
       resizing = {startX: e.clientX, startY: e.clientY, ow: ref.w, oh: ref.h, zoom: state.zoom/100};
     });
@@ -752,146 +1194,620 @@
       if (!resizing) return;
       var dx = (e.clientX - resizing.startX) / resizing.zoom;
       var dy = (e.clientY - resizing.startY) / resizing.zoom;
-      ref.w = Math.max(28, snapVal(resizing.ow + dx));
-      ref.h = Math.max(20, snapVal(resizing.oh + dy));
+      var minW = entry.kind === "divider" ? 8 : 28, minH = entry.kind === "divider" ? 8 : 20;
+      ref.w = Math.max(minW, snapVal(resizing.ow + dx));
+      ref.h = Math.max(minH, snapVal(resizing.oh + dy));
       applyGeom(node, ref);
+      if (entry.kind === "divider") node.classList.toggle("vertical", ref.h > ref.w);
+      if (entry.kind === "iconbox") applyLook(node, entry);
       updateSelFields();
+      updateGroupFrames();
     });
-    function endResize(e){
-      if (resizing) { resizing = null; saveState(); }
+    function endResize() {
+      if (resizing) { resizing = null; commit(); }
     }
     handle.addEventListener("pointerup", endResize);
     handle.addEventListener("pointercancel", endResize);
 
-    node.querySelector(".lbl").addEventListener("dblclick", function(e){
+    node.addEventListener("dblclick", function(e){
       e.stopPropagation();
-      var next = prompt("Rename:", ref.label);
-      if (next !== null && next.trim() !== "") {
-        ref.label = next.trim();
-        render();
-        saveState();
-      }
+      if (ref.locked) return;
+      startInlineEdit(node, entry);
     });
+  }
+
+  function startInlineEdit(node, entry) {
+    var ref = entry.ref;
+    if (entry.kind === "divider" || entry.kind === "iconbox") {
+      var next = prompt("Rename:", ref.label);
+      if (next !== null && next.trim() !== "") { ref.label = next.trim(); commit(); render(); }
+      return;
+    }
+    var lbl = node.querySelector(".lbl"), txt = node.querySelector(".txt");
+    lbl.style.pointerEvents = "auto";
+    txt.contentEditable = "true";
+    txt.focus();
+    var range = document.createRange();
+    range.selectNodeContents(txt);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(range);
+    txt.addEventListener("keydown", function(e){
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); txt.blur(); }
+      if (e.key === "Escape") { txt.textContent = ref.label; txt.blur(); }
+    });
+    txt.addEventListener("blur", function(){
+      txt.contentEditable = "false";
+      var v = txt.textContent.trim();
+      if (v) ref.label = v;
+      commit();
+      render();
+    }, {once: true});
+  }
+
+  function startMarquee(e, clickRef) {
+    var p0 = canvasPoint(e), additive = e.shiftKey, base = additive ? sel.slice() : [];
+    var box = el("div", "marquee"), moved = false;
+    canvas.appendChild(box);
+    if (!additive && !clickRef) setSel([]);
+    stage.setPointerCapture(e.pointerId);
+    function move(ev) {
+      var p = canvasPoint(ev);
+      var r = {x: Math.min(p0.x, p.x), y: Math.min(p0.y, p.y), w: Math.abs(p.x - p0.x), h: Math.abs(p.y - p0.y)};
+      if (r.w + r.h > 4) moved = true;
+      if (!moved) return;
+      applyGeom(box, r);
+      var hits = [];
+      entries.forEach(function(en){
+        var q = en.ref;
+        if (q.locked || q.hidden) return;
+        if (q.x >= r.x && q.y >= r.y && q.x + q.w <= r.x + r.w && q.y + q.h <= r.y + r.h) {
+          expandGroup(q).forEach(function(m){ if (hits.indexOf(m) < 0) hits.push(m); });
+        }
+      });
+      sel = base.concat(hits.filter(function(h){ return base.indexOf(h) < 0; }));
+      refreshSelection();
+    }
+    function up() {
+      stage.removeEventListener("pointermove", move);
+      stage.removeEventListener("pointerup", up);
+      stage.removeEventListener("pointercancel", up);
+      box.remove();
+      if (!moved && clickRef) {
+        var grp = expandGroup(clickRef);
+        setSel(additive ? base.concat(grp.filter(function(r){ return base.indexOf(r) < 0; })) : grp);
+      }
+    }
+    stage.addEventListener("pointermove", move);
+    stage.addEventListener("pointerup", up);
+    stage.addEventListener("pointercancel", up);
   }
 
   stage.addEventListener("pointerdown", function(e){
-    if (e.target === stage || e.target === canvas) deselect();
+    if (e.button !== 0) return;
+    if (e.target === stage && (e.offsetX > stage.clientWidth || e.offsetY > stage.clientHeight)) return;
+    if (e.target === stage || e.target === canvas) { hideCtx(); startMarquee(e, null); }
   });
 
-  // ============================================================
-  // 6. Selection panel
-  // ============================================================
-  function select(node, ref) {
-    if (selectedEl) selectedEl.classList.remove("selected");
-    selectedEl = node; selectedRef = ref;
-    node.classList.add("selected");
-    document.getElementById("selEmpty").style.display = "none";
-    document.getElementById("selFields").style.display = "flex";
-    document.getElementById("selFields").style.flexDirection = "column";
-    document.getElementById("selFields").style.gap = "6px";
-    updateSelFields();
-  }
-  function deselect() {
-    if (selectedEl) selectedEl.classList.remove("selected");
-    selectedEl = null; selectedRef = null;
-    document.getElementById("selEmpty").style.display = "block";
-    document.getElementById("selFields").style.display = "none";
-  }
-  function restoreSelection() {
-    if (!selectedRef) return;
-    var found = Array.prototype.find.call(canvas.children, function(n){ return n._ref === selectedRef; });
-    if (found) { selectedEl = found; found.classList.add("selected"); }
-    else deselect();
-  }
-  function updateSelFields() {
-    if (!selectedRef) return;
-    document.getElementById("selLabel").value = selectedRef.label || "";
-    document.getElementById("selX").value = Math.round(selectedRef.x);
-    document.getElementById("selY").value = Math.round(selectedRef.y);
-    document.getElementById("selW").value = Math.round(selectedRef.w);
-    document.getElementById("selH").value = Math.round(selectedRef.h);
-  }
-  ["selX","selY","selW","selH"].forEach(function(id){
-    document.getElementById(id).addEventListener("change", function(){
-      if (!selectedRef) return;
-      var v = parseFloat(this.value) || 0;
-      var key = id.replace("sel","").toLowerCase();
-      selectedRef[key] = v;
-      applyGeom(selectedEl, selectedRef);
-      saveState();
-    });
-  });
-  document.getElementById("selLabel").addEventListener("change", function(){
-    if (!selectedRef) return;
-    selectedRef.label = this.value;
-    render();
-    saveState();
-  });
-  document.getElementById("btnDeleteSel").addEventListener("click", function(){
-    if (!selectedRef) return;
-    removeRef(selectedRef);
-    deselect();
-    render();
-    saveState();
-  });
-
-  function removeRef(ref) {
-    var tab = state.tabs[state.activeTab];
-    ["items","extra","sections"].forEach(function(k){
-      if (tab && tab[k]) tab[k] = tab[k].filter(function(x){ return x !== ref; });
-    });
-    if (tab && tab.pivot === ref) tab.pivot = null;
-    state.actionBar.items = state.actionBar.items.filter(function(x){ return x !== ref; });
-    state.tabBar.items = state.tabBar.items.filter(function(x){ return x !== ref; });
-  }
+  stage.addEventListener("wheel", function(e){
+    if (!(e.ctrlKey || e.metaKey)) return;
+    e.preventDefault();
+    setZoom(state.zoom + (e.deltaY < 0 ? 10 : -10));
+  }, {passive: false});
 
   // ============================================================
-  // 7. Toolbar actions
+  // 7. Editing actions
   // ============================================================
   var uidCounter = 1;
   function uid(prefix) { return prefix + "_" + (Date.now().toString(36)) + "_" + (uidCounter++); }
 
-  document.getElementById("btnAddTool").addEventListener("click", function(){
-    var tab = state.tabs[state.activeTab];
+  function visibleSpot(w, h) {
+    var z = state.zoom / 100;
+    var cx = (stage.scrollLeft + stage.clientWidth / 2) / z;
+    var cy = (stage.scrollTop + stage.clientHeight / 2) / z;
+    return {x: snapVal(cx - w / 2), y: snapVal(cy - h / 2)};
+  }
+
+  function insert(key, over) {
+    var tab = curTab();
+    if (!tab) return null;
+    var d = Object.assign({}, INSERT_DEFS[key], over || {});
+    var p = visibleSpot(d.w, d.h);
+    // Drop below any earlier free-form element it would cover, so repeated
+    // inserts form a column instead of burying each other.
+    d.x = p.x; d.y = p.y;
+    for (var guard = 0; guard < 50; guard++) {
+      var hit = tab.shapes.filter(function(s){ return !s.hidden && overlaps(s, d); })[0];
+      if (!hit) break;
+      d.y = snapVal(hit.y + hit.h + GRID);
+    }
+    d.id = uid(d.kind);
+    if (d.kind !== "section" && d.kind !== "block") d.z = maxZ() + 1;
+    tab.shapes.push(d);
+    commit();
+    render();
+    setSel([d]);
+    return d;
+  }
+
+  function selAsClip(refs) {
+    return refs.slice().sort(function(a, b){ return zRef(a) - zRef(b); })
+      .map(function(r){ return {kind: entryOf.get(r).kind, ref: clone(r)}; });
+  }
+
+  // Copies land in the tab's free-form shapes, whatever list the original lived in,
+  // so a tab button or action copied onto another tab is just a placed block there.
+  function placeCopies(list, tab, dx, dy) {
+    var gmap = {}, added = [], top = maxZ();
+    list.forEach(function(c, i){
+      var r = clone(c.ref);
+      r.id = uid(c.kind);
+      r.kind = c.kind;
+      r.x = Math.round(r.x + dx); r.y = Math.round(r.y + dy);
+      delete r.locked; delete r.hidden; delete r.tab;
+      if (c.kind === "section" || FRAME_KINDS[c.kind]) delete r.z;
+      else r.z = top + 1 + i;
+      if (r.group) {
+        if (!gmap[r.group]) gmap[r.group] = uid("g");
+        r.group = gmap[r.group];
+      }
+      tab.shapes.push(r);
+      added.push(r);
+    });
+    return added;
+  }
+
+  function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
+
+  function copySel() {
+    if (!sel.length) return;
+    clipboard = selAsClip(sel);
+    pasteCount = 0;
+    try { localStorage.setItem(CLIP_KEY, JSON.stringify(clipboard)); } catch (e) { /* in-memory copy still works */ }
+    toast("Copied " + plural(sel.length, "item"));
+  }
+  function readClip() {
+    if (clipboard) return clipboard;
+    try { return JSON.parse(localStorage.getItem(CLIP_KEY) || "null"); } catch (e) { return null; }
+  }
+  function hasClip() { var c = readClip(); return !!(c && c.length); }
+  function pasteClip(pt) {
+    var clip = readClip(), tab = curTab();
+    if (!clip || !clip.length) { toast("Clipboard is empty"); return; }
     if (!tab) return;
-    var ca = state.contentArea;
-    var g = {id: uid("custom_tool"), label: "New Tool", icon: "★",
-             x: ca.x + 20, y: ca.y + 20, w: 96, h: 30};
-    tab.items.push(g);
-    render(); saveState();
-    var node = Array.prototype.find.call(canvas.children, function(n){ return n._ref === g; });
-    if (node) select(node, g);
+    var dx, dy;
+    if (pt) {
+      var mx = Infinity, my = Infinity;
+      clip.forEach(function(c){ mx = Math.min(mx, c.ref.x); my = Math.min(my, c.ref.y); });
+      dx = snapVal(pt.x) - mx; dy = snapVal(pt.y) - my;
+    } else {
+      pasteCount++;
+      dx = dy = GRID * 2 * pasteCount;
+    }
+    var added = placeCopies(clip, tab, dx, dy);
+    commit(); render(); setSel(added);
+    toast("Pasted " + plural(added.length, "item"));
+  }
+  function cutSel() { if (!sel.length) return; copySel(); deleteSel(); }
+  function dupSel() {
+    if (!sel.length || !curTab()) return;
+    var added = placeCopies(selAsClip(sel), curTab(), GRID * 2, GRID * 2);
+    commit(); render(); setSel(added);
+  }
+
+  function isTabOwned(r) {
+    var e = entryOf.get(r);
+    if (!e) return false;
+    if (e.kind === "pivot") return true;
+    return !!e.list && e.list !== state.actionBar.items && e.list !== state.tabBar.items;
+  }
+  function deleteRefs(refs) {
+    refs.forEach(function(r){
+      var e = entryOf.get(r);
+      if (!e) return;
+      if (e.list) {
+        var i = e.list.indexOf(r);
+        if (i >= 0) e.list.splice(i, 1);
+      } else if (e.kind === "pivot") {
+        curTab().pivot = null;
+      } else {
+        r.hidden = true;  // frames are shared by every tab; hide rather than destroy
+      }
+    });
+  }
+  function deleteSel() {
+    if (!sel.length) return;
+    deleteRefs(sel);
+    sel = [];
+    commit(); render();
+  }
+
+  function groupSel() {
+    if (sel.length < 2) { toast("Select 2 or more items to group"); return; }
+    var g = uid("g");
+    sel.forEach(function(r){ r.group = g; });
+    commit(); render();
+    toast("Grouped " + plural(sel.length, "item"));
+  }
+  function ungroupSel() {
+    if (!sel.some(function(r){ return r.group; })) return;
+    sel.forEach(function(r){ delete r.group; });
+    commit(); render();
+    toast("Ungrouped");
+  }
+  function toggleLock() {
+    if (!sel.length) return;
+    var lockAll = !sel.every(function(r){ return r.locked; });
+    sel.forEach(function(r){ if (lockAll) r.locked = true; else delete r.locked; });
+    commit(); render();
+    toast(lockAll ? "Locked — clicks now pass through. Unlock from Layers." : "Unlocked");
+  }
+
+  function sortedSel() { return sel.slice().sort(function(a, b){ return zRef(a) - zRef(b); }); }
+  function zFront() {
+    if (!sel.length) return;
+    var m = maxZ();
+    sortedSel().forEach(function(r, i){ r.z = m + 1 + i; });
+    commit(); render();
+  }
+  function zBack() {
+    if (!sel.length) return;
+    var m = minZ(), s = sortedSel();
+    s.forEach(function(r, i){ r.z = m - s.length + i; });
+    commit(); render();
+  }
+  function zForward() {
+    if (!sel.length) return;
+    sortedSel().reverse().forEach(function(r){
+      var z = zRef(r), best = null;
+      entries.forEach(function(e){
+        if (isSel(e.ref) || e.ref.hidden) return;
+        var ez = zRef(e.ref);
+        if (ez >= z && overlaps(e.ref, r) && (best === null || ez < best)) best = ez;
+      });
+      r.z = (best === null ? z : best) + 1;
+    });
+    commit(); render();
+  }
+  function zBackward() {
+    if (!sel.length) return;
+    sortedSel().forEach(function(r){
+      var z = zRef(r), best = null;
+      entries.forEach(function(e){
+        if (isSel(e.ref) || e.ref.hidden) return;
+        var ez = zRef(e.ref);
+        if (ez <= z && overlaps(e.ref, r) && (best === null || ez > best)) best = ez;
+      });
+      r.z = (best === null ? z : best) - 1;
+    });
+    commit(); render();
+  }
+
+  var nudgeTimer = null;
+  function nudge(dx, dy) {
+    var movable = sel.filter(function(r){ return !r.locked; });
+    if (!movable.length) return;
+    movable.forEach(function(r){ r.x += dx; r.y += dy; applyGeom(nodeOf.get(r), r); });
+    updateSelFields();
+    updateGroupFrames();
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(commit, 300);
+  }
+  function selectAll() {
+    setSel(entries.filter(function(e){ return !e.ref.locked && !e.ref.hidden; }).map(function(e){ return e.ref; }));
+  }
+
+  // ---- "add from another menu" and "send to tab" dropdowns ----
+  var addFromRefs = [];
+  function option(value, text) { var o = document.createElement("option"); o.value = value; o.textContent = text; return o; }
+  function buildAddFrom() {
+    var s = $("selAddFrom");
+    s.innerHTML = "";
+    addFromRefs = [];
+    s.appendChild(option("", "＋ Add from another menu…"));
+    function group(label, refs, kind) {
+      if (!refs.length) return;
+      var og = document.createElement("optgroup");
+      og.label = label;
+      refs.forEach(function(r){
+        og.appendChild(option(String(addFromRefs.length), (r.icon ? r.icon + "  " : "") + r.label));
+        addFromRefs.push({ref: r, kind: r.kind || kind});
+      });
+      s.appendChild(og);
+    }
+    TAB_ORDER.forEach(function(id){
+      var t = state.tabs[id];
+      if (!t) return;
+      var refs = t.items.concat(t.shapes.filter(function(r){
+        return r.kind === "tool" || r.kind === "iconbox" || r.kind === "actionbtn";
+      }));
+      group(TAB_LABEL[id] + (id === state.activeTab ? " (this tab)" : ""), refs, "tool");
+    });
+    group("Action bar", state.actionBar.items, "actionbtn");
+  }
+  function buildSendTo() {
+    var s = $("selSendTo");
+    s.innerHTML = "";
+    s.appendChild(option("", "⇢ Send selection to tab…"));
+    ["copy", "move"].forEach(function(mode){
+      var og = document.createElement("optgroup");
+      og.label = mode === "copy" ? "Copy to" : "Move to";
+      TAB_ORDER.forEach(function(id){
+        if (id !== state.activeTab) og.appendChild(option(mode + ":" + id, TAB_LABEL[id]));
+      });
+      s.appendChild(og);
+    });
+  }
+
+  $("selAddFrom").addEventListener("change", function(){
+    var pick = addFromRefs[parseInt(this.value, 10)];
+    this.value = "";
+    var tab = curTab();
+    if (!pick || !tab) return;
+    var r = clone(pick.ref);
+    delete r.group; delete r.locked; delete r.hidden; delete r.tab; delete r.section;
+    var p = visibleSpot(r.w, r.h);
+    r.id = uid("tool"); r.kind = pick.kind; r.x = p.x; r.y = p.y; r.z = maxZ() + 1;
+    tab.shapes.push(r);
+    commit(); render(); setSel([r]);
+    toast("Added “" + r.label + "” to " + TAB_LABEL[state.activeTab]);
   });
-  document.getElementById("btnAddSection").addEventListener("click", function(){
-    var tab = state.tabs[state.activeTab];
-    if (!tab) return;
-    var ca = state.contentArea;
-    var g = {id: uid("custom_section"), label: "New Section", x: ca.x + 10, y: ca.y + 10, w: 300, h: 100};
-    tab.sections.push(g);
-    render(); saveState();
+  $("selSendTo").addEventListener("change", function(){
+    var v = this.value;
+    this.value = "";
+    if (!v) return;
+    if (!sel.length) { toast("Select something first"); return; }
+    var parts = v.split(":"), mode = parts[0], target = state.tabs[parts[1]];
+    if (!target) return;
+    var n = placeCopies(selAsClip(sel), target, 0, 0).length;
+    if (mode === "move") {
+      deleteRefs(sel.filter(isTabOwned));
+      sel = [];
+    }
+    commit(); render();
+    toast((mode === "move" ? "Moved " : "Copied ") + plural(n, "item") + " to " + TAB_LABEL[parts[1]]);
   });
-  document.getElementById("btnAddNote").addEventListener("click", function(){
-    var tab = state.tabs[state.activeTab];
-    if (!tab) return;
-    tab.extra = tab.extra || [];
-    var ca = state.contentArea;
-    var g = {id: uid("note"), label: "Note / placeholder", x: ca.x + 20, y: ca.y + 20, w: 200, h: 60};
-    tab.extra.push(g);
-    render(); saveState();
+  $("selInsert").addEventListener("change", function(){
+    var k = this.value;
+    this.value = "";
+    if (k) insert(k);
   });
 
-  document.getElementById("chkSnap").addEventListener("change", function(){
+  // ---- icons ----
+  function buildIconGrid() {
+    var q = $("iconSearch").value.trim().toLowerCase(), grid = $("iconGrid");
+    grid.innerHTML = "";
+    UI_ICONS.forEach(function(ic){
+      if (q && ic[1].indexOf(q) < 0 && ic[0] !== q) return;
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = ic[0];
+      b.title = ic[1] + " — click to add, Shift+click to set on selection";
+      b.addEventListener("click", function(e){ useIcon(ic, e.shiftKey || $("chkIconApply").checked); });
+      grid.appendChild(b);
+    });
+  }
+  function useIcon(ic, applyToSel) {
+    if (applyToSel) {
+      if (!sel.length) { toast("Select an item first"); return; }
+      sel.forEach(function(r){ r.icon = ic[0]; });
+      commit(); render();
+      toast("Icon set on " + plural(sel.length, "item"));
+      return;
+    }
+    var name = ic[1].split(" ")[0];
+    insert("iconbox", {icon: ic[0], label: name.charAt(0).toUpperCase() + name.slice(1)});
+  }
+  $("iconSearch").addEventListener("input", buildIconGrid);
+
+  // ---- layers ----
+  function renderLayers() {
+    var list = $("layerList");
+    list.innerHTML = "";
+    entries.slice().sort(function(a, b){
+      return (zRef(b.ref) - zRef(a.ref)) || (b.order - a.order);
+    }).forEach(function(e){
+      var r = e.ref;
+      var row = el("div", "layer" + (r.hidden ? " is-hidden" : ""));
+      row._ref = r;
+      var ic = el("span", "ic"); ic.textContent = r.icon || KIND_GLYPH[e.kind] || "▫";
+      var nm = el("span", "nm"); nm.textContent = (r.group ? "⧉ " : "") + (r.label || KIND_NAME[e.kind]);
+      var kd = el("span", "kd"); kd.textContent = KIND_NAME[e.kind];
+      var eye = el("button", r.hidden ? "" : "on"); eye.textContent = "👁"; eye.title = r.hidden ? "Show" : "Hide";
+      var lk = el("button", r.locked ? "on" : ""); lk.textContent = r.locked ? "🔒" : "🔓"; lk.title = r.locked ? "Unlock" : "Lock";
+      eye.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        if (r.hidden) delete r.hidden; else r.hidden = true;
+        commit(); render();
+      });
+      lk.addEventListener("click", function(ev){
+        ev.stopPropagation();
+        if (r.locked) delete r.locked; else r.locked = true;
+        commit(); render();
+      });
+      row.addEventListener("click", function(ev){
+        if (ev.shiftKey) setSel(isSel(r) ? sel.filter(function(x){ return x !== r; }) : sel.concat([r]));
+        else setSel([r]);
+        var n = nodeOf.get(r);
+        if (n && n.scrollIntoView) n.scrollIntoView({block: "nearest", inline: "nearest"});
+      });
+      row.appendChild(ic); row.appendChild(nm); row.appendChild(kd); row.appendChild(eye); row.appendChild(lk);
+      list.appendChild(row);
+    });
+  }
+  $("btnLockFrames").addEventListener("click", function(){
+    [state.viewport, state.contentArea, state.actionBar.box].forEach(function(r){ r.locked = true; });
+    sel = sel.filter(function(r){ return !FRAME_KINDS[entryOf.get(r).kind]; });
+    commit(); render();
+    toast("Frames locked — clicks now reach the tools on top");
+  });
+  $("btnUnlockAll").addEventListener("click", function(){
+    entries.forEach(function(e){ delete e.ref.locked; });
+    commit(); render();
+  });
+  $("btnShowAll").addEventListener("click", function(){
+    entries.forEach(function(e){ delete e.ref.hidden; });
+    commit(); render();
+  });
+
+  // ---- context menu ----
+  var ctx = $("ctx");
+  function hideCtx() { ctx.style.display = "none"; }
+  function showCtx(cx, cy) {
+    var has = sel.length > 0, allLocked = has && sel.every(function(r){ return r.locked; });
+    var items = [
+      ["Cut", MOD + "+X", cutSel, has],
+      ["Copy", MOD + "+C", copySel, has],
+      ["Paste here", MOD + "+V", function(){ pasteClip(ctxPt); }, hasClip()],
+      ["Duplicate", MOD + "+D", dupSel, has],
+      null,
+      ["Bring to front", MOD + "+]", zFront, has],
+      ["Bring forward", "]", zForward, has],
+      ["Send backward", "[", zBackward, has],
+      ["Send to back", MOD + "+[", zBack, has],
+      null,
+      ["Group", MOD + "+G", groupSel, sel.length > 1],
+      ["Ungroup", MOD + "+Shift+G", ungroupSel, sel.some(function(r){ return r.group; })],
+      [allLocked ? "Unlock" : "Lock", MOD + "+Shift+L", toggleLock, has],
+      null,
+      ["Select all", MOD + "+A", selectAll, true],
+      ["Delete", "Del", deleteSel, has]
+    ];
+    ctx.innerHTML = "";
+    items.forEach(function(it){
+      if (!it) { ctx.appendChild(document.createElement("hr")); return; }
+      var b = document.createElement("button");
+      b.type = "button";
+      var a = el("span"); a.textContent = it[0];
+      var k = el("span", "k"); k.textContent = it[1];
+      b.appendChild(a); b.appendChild(k);
+      b.disabled = !it[3];
+      b.addEventListener("click", function(){ hideCtx(); it[2](); });
+      ctx.appendChild(b);
+    });
+    ctx.style.display = "block";
+    ctx.style.left = Math.max(4, Math.min(cx, window.innerWidth - ctx.offsetWidth - 8)) + "px";
+    ctx.style.top = Math.max(4, Math.min(cy, window.innerHeight - ctx.offsetHeight - 8)) + "px";
+  }
+  stage.addEventListener("contextmenu", function(e){
+    e.preventDefault();
+    var n = e.target.closest && e.target.closest(".box");
+    if (n && n._entry && !isSel(n._entry.ref)) setSel(expandGroup(n._entry.ref));
+    ctxPt = canvasPoint(e);
+    showCtx(e.clientX, e.clientY);
+  });
+  document.addEventListener("pointerdown", function(e){ if (!ctx.contains(e.target)) hideCtx(); }, true);
+
+  // ---- toast ----
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 1800);
+  }
+
+  // ============================================================
+  // 8. Selected-item fields
+  // ============================================================
+  $("selLabel").addEventListener("change", function(){
+    if (!sel.length) return;
+    var v = this.value;
+    sel.forEach(function(r){ r.label = v; });
+    commit(); render();
+  });
+  $("selIcon").addEventListener("change", function(){
+    if (!sel.length) return;
+    var v = this.value.trim();
+    sel.forEach(function(r){ if (v) r.icon = v; else delete r.icon; });
+    commit(); render();
+  });
+  $("selFont").addEventListener("change", function(){
+    if (!sel.length) return;
+    var v = parseInt(this.value, 10);
+    sel.forEach(function(r){ if (v > 0) r.fontSize = v; else delete r.fontSize; });
+    commit(); render();
+  });
+  ["selX","selY"].forEach(function(id){
+    $(id).addEventListener("change", function(){
+      if (!sel.length) return;
+      var key = id === "selX" ? "x" : "y";
+      var d = (parseFloat(this.value) || 0) - sel[0][key];
+      sel.forEach(function(r){ r[key] += d; applyGeom(nodeOf.get(r), r); });
+      updateGroupFrames();
+      commit();
+    });
+  });
+  ["selW","selH"].forEach(function(id){
+    $(id).addEventListener("change", function(){
+      if (!sel.length) return;
+      var key = id === "selW" ? "w" : "h";
+      var v = Math.max(4, parseFloat(this.value) || 0);
+      sel.forEach(function(r){ r[key] = v; });
+      commit(); render();
+    });
+  });
+  function liveColor(key, value) {
+    sel.forEach(function(r){
+      r[key] = value;
+      var n = nodeOf.get(r);
+      if (n) applyLook(n, entryOf.get(r));
+    });
+  }
+  $("selFill").addEventListener("input", function(){ liveColor("fill", this.value); });
+  $("selFill").addEventListener("change", commit);
+  $("selColor").addEventListener("input", function(){ liveColor("color", this.value); });
+  $("selColor").addEventListener("change", commit);
+  $("btnResetColor").addEventListener("click", function(){
+    sel.forEach(function(r){ delete r.fill; delete r.color; });
+    commit(); render();
+  });
+  SWATCHES.forEach(function(c){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.style.background = c;
+    b.title = "Fill " + c;
+    b.addEventListener("click", function(){
+      if (!sel.length) return;
+      liveColor("fill", c);
+      commit();
+      updateSelFields();
+    });
+    $("swatches").appendChild(b);
+  });
+  $("btnFront").addEventListener("click", zFront);
+  $("btnForward").addEventListener("click", zForward);
+  $("btnBackward").addEventListener("click", zBackward);
+  $("btnBack").addEventListener("click", zBack);
+  $("btnGroup").addEventListener("click", groupSel);
+  $("btnUngroup").addEventListener("click", ungroupSel);
+  $("btnLock").addEventListener("click", toggleLock);
+  $("btnDup").addEventListener("click", dupSel);
+  $("btnDeleteSel").addEventListener("click", deleteSel);
+
+  // ============================================================
+  // 9. Toolbar actions
+  // ============================================================
+  $("btnAddTool").addEventListener("click", function(){ insert("tool"); });
+  $("btnAddSection").addEventListener("click", function(){ insert("section"); });
+  $("btnAddNote").addEventListener("click", function(){ insert("note"); });
+  $("btnUndo").addEventListener("click", undo);
+  $("btnRedo").addEventListener("click", redo);
+
+  $("chkSnap").addEventListener("change", function(){
     state.snap = this.checked; saveState();
   });
-  document.getElementById("zoomSlider").addEventListener("input", function(){
-    state.zoom = parseInt(this.value, 10);
-    document.getElementById("zoomVal").textContent = state.zoom + "%";
+  function setZoom(z) {
+    state.zoom = Math.max(25, Math.min(200, Math.round(z)));
+    $("zoomSlider").value = state.zoom;
+    $("zoomVal").textContent = state.zoom + "%";
     canvas.style.transform = "scale(" + (state.zoom/100) + ")";
     saveState();
-  });
+  }
+  $("zoomSlider").addEventListener("input", function(){ setZoom(parseInt(this.value, 10)); });
 
   var themeOrder = ["auto","dark","light"];
-  document.getElementById("btnTheme").addEventListener("click", function(){
+  $("btnTheme").addEventListener("click", function(){
     var i = themeOrder.indexOf(state.theme || "auto");
     state.theme = themeOrder[(i+1) % themeOrder.length];
     applyTheme();
@@ -901,51 +1817,55 @@
     var t = state.theme || "auto";
     if (t === "auto") document.documentElement.removeAttribute("data-theme");
     else document.documentElement.setAttribute("data-theme", t);
-    document.getElementById("btnTheme").textContent = "Theme: " + t;
+    $("btnTheme").textContent = "Theme: " + t;
   }
 
-  document.getElementById("btnClearTab").addEventListener("click", function(){
+  function syncControls() {
+    $("zoomSlider").value = state.zoom || 100;
+    $("zoomVal").textContent = (state.zoom || 100) + "%";
+    $("chkSnap").checked = state.snap !== false;
+  }
+
+  $("btnClearTab").addEventListener("click", function(){
     if (!confirm("Remove every item on the current tab's canvas? (Tab and other tabs are unaffected.)")) return;
-    var tab = state.tabs[state.activeTab];
+    var tab = curTab();
     if (!tab) return;
-    tab.items = []; tab.sections = []; tab.extra = []; tab.pivot = null;
-    deselect(); render(); saveState();
+    tab.items = []; tab.sections = []; tab.extra = []; tab.shapes = []; tab.pivot = null;
+    sel = []; commit(); render();
   });
-  document.getElementById("btnReset").addEventListener("click", function(){
-    if (!confirm("Reset the ENTIRE layout back to the default UV Studio arrangement? This can't be undone.")) return;
+  $("btnReset").addEventListener("click", function(){
+    if (!confirm("Reset the ENTIRE layout back to the default UV Studio arrangement? (Undo can bring it back.)")) return;
     state = buildDefaultState();
-    deselect(); render(); saveState();
-    document.getElementById("zoomSlider").value = state.zoom;
-    document.getElementById("zoomVal").textContent = state.zoom + "%";
-    document.getElementById("chkSnap").checked = state.snap;
+    sel = []; commit(); render();
+    syncControls(); applyTheme();
   });
 
   // ---- export / import ----
-  var modal = document.getElementById("exportModal");
-  var exportText = document.getElementById("exportText");
-  document.getElementById("btnExport").addEventListener("click", function(){
+  var modal = $("exportModal");
+  var exportText = $("exportText");
+  $("btnExport").addEventListener("click", function(){
     exportText.value = JSON.stringify(state, null, 2);
     exportText.readOnly = true;
-    document.getElementById("copyMsg").textContent = "";
+    $("copyMsg").textContent = "";
     modal.classList.add("open");
     exportText.focus();
     exportText.select();
   });
-  document.getElementById("btnImport").addEventListener("click", function(){
+  $("btnImport").addEventListener("click", function(){
     exportText.value = "";
     exportText.readOnly = false;
     exportText.placeholder = "Paste a previously exported layout JSON here, then click Apply.";
-    document.getElementById("copyMsg").textContent = "";
+    $("copyMsg").textContent = "";
     modal.classList.add("open");
     exportText.focus();
   });
-  document.getElementById("btnCloseModal").addEventListener("click", function(){
+  $("btnCloseModal").addEventListener("click", function(){
     modal.classList.remove("open");
   });
   modal.addEventListener("pointerdown", function(e){ if (e.target === modal) modal.classList.remove("open"); });
 
-  document.getElementById("btnCopy").addEventListener("click", function(){
-    var msg = document.getElementById("copyMsg");
+  $("btnCopy").addEventListener("click", function(){
+    var msg = $("copyMsg");
     try {
       navigator.clipboard.writeText(exportText.value).then(function(){
         msg.textContent = "Copied!";
@@ -958,47 +1878,67 @@
     }
   });
 
-  document.getElementById("btnApplyImport").addEventListener("click", function(){
+  $("btnApplyImport").addEventListener("click", function(){
     try {
       var parsed = JSON.parse(exportText.value);
       if (!parsed || !parsed.tabs || !parsed.tabBar) throw new Error("not a layout file");
-      state = parsed;
-      if (!TAB_ORDER.includes(state.activeTab)) state.activeTab = TAB_ORDER[0];
-      deselect(); render(); saveState();
-      document.getElementById("zoomSlider").value = state.zoom || 100;
-      document.getElementById("zoomVal").textContent = (state.zoom || 100) + "%";
-      document.getElementById("chkSnap").checked = state.snap !== false;
-      applyTheme();
+      state = migrate(parsed);
+      if (TAB_ORDER.indexOf(state.activeTab) < 0) state.activeTab = TAB_ORDER[0];
+      sel = []; commit(); render();
+      syncControls(); applyTheme();
       modal.classList.remove("open");
     } catch (e) {
       alert("That doesn't look like a valid layout export. (" + e.message + ")");
     }
   });
-  document.getElementById("fileInput").addEventListener("change", function(){
+  $("fileInput").addEventListener("change", function(){
     var f = this.files && this.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(){ exportText.value = reader.result; };
+    reader.onload = function(){ exportText.value = reader.result; exportText.readOnly = false; };
     reader.readAsText(f);
   });
 
+  // ============================================================
+  // 10. Keyboard
+  // ============================================================
   window.addEventListener("keydown", function(e){
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedRef &&
-        document.activeElement && document.activeElement.tagName !== "INPUT") {
-      e.preventDefault();
-      removeRef(selectedRef);
-      deselect(); render(); saveState();
+    var a = document.activeElement;
+    if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.tagName === "SELECT" || a.isContentEditable)) return;
+    if (modal.classList.contains("open")) return;
+    var mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase(), handled = true;
+    if (mod && k === "z" && !e.shiftKey) undo();
+    else if (mod && (k === "y" || (k === "z" && e.shiftKey))) redo();
+    else if (mod && k === "c") copySel();
+    else if (mod && k === "x") cutSel();
+    else if (mod && k === "v") pasteClip(null);
+    else if (mod && k === "d") dupSel();
+    else if (mod && k === "a") selectAll();
+    else if (mod && k === "g") { if (e.shiftKey) ungroupSel(); else groupSel(); }
+    else if (mod && e.shiftKey && k === "l") toggleLock();
+    else if (e.key === "]") { if (mod) zFront(); else zForward(); }
+    else if (e.key === "[") { if (mod) zBack(); else zBackward(); }
+    else if ((e.key === "Delete" || e.key === "Backspace") && sel.length) deleteSel();
+    else if (e.key === "Escape") { hideCtx(); setSel([]); }
+    else if (e.key.indexOf("Arrow") === 0 && sel.length) {
+      var step = e.shiftKey ? (state.snap ? GRID * 4 : 10) : (state.snap ? GRID : 1);
+      nudge(e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0,
+            e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0);
     }
+    else handled = false;
+    if (handled) e.preventDefault();
   });
 
   // ============================================================
-  // 8. Boot
+  // 11. Boot
   // ============================================================
-  document.getElementById("zoomSlider").value = state.zoom || 100;
-  document.getElementById("zoomVal").textContent = (state.zoom || 100) + "%";
-  document.getElementById("chkSnap").checked = state.snap !== false;
+  syncControls();
   applyTheme();
+  buildIconGrid();
   render();
+  hist = [JSON.stringify(state)];
+  hIdx = 0;
+  updateButtons();
 })();
 </script>
 </body>
