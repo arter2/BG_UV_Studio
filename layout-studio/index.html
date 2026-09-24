@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Layout Studio — lightweight wireframe canvas</title>
+    <title>UV Studio — Layout Designer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,44 +13,65 @@
     <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
-    <div class="app">
+    <div class="app uv-designer">
       <header class="topbar">
-        <span class="brand">Layout Studio</span>
-        <select id="import-layout" aria-label="Import from menu layout"></select>
+        <span class="brand">🧩 UV Studio — Layout Designer</span>
+        <label class="chk">
+          <input type="checkbox" id="snap-grid" checked />
+          Snap to grid
+        </label>
+        <label class="zoom-control">
+          Zoom
+          <input type="range" id="zoom-range" min="50" max="200" value="100" />
+          <span id="zoom-label">100%</span>
+        </label>
         <div class="tool-group">
-          <button type="button" id="btn-group" title="Group (⌘G)">Group</button>
-          <button type="button" id="btn-ungroup" title="Ungroup (⌘⇧G)">
-            Ungroup
+          <button type="button" id="btn-export" class="primary">
+            Export layout
           </button>
-          <button type="button" id="btn-delete" title="Delete">Delete</button>
+          <label class="file-btn">
+            Load a file…
+            <input type="file" id="load-json" accept="application/json,.json" hidden />
+          </label>
         </div>
-        <div class="tool-group">
-          <button type="button" id="btn-save">Save</button>
-          <button type="button" id="btn-export">Export JSON</button>
-        </div>
-        <span class="muted" style="margin-left: auto; font-size: 12px">
-          ⌘C / ⌘V · ⌘D duplicate · L lock · [ ] layer · Alt-drag pan · ⌘ scroll zoom
-        </span>
       </header>
 
       <div class="main">
         <aside class="sidebar left">
-          <h3>Add elements</h3>
-          <div class="add-tools">
-            <button type="button" data-add="panel">Panel</button>
-            <button type="button" data-add="block">Block</button>
-            <button type="button" data-add="text">Text label</button>
-            <button type="button" data-add="textfield">Text field</button>
-            <button type="button" data-add="linebreak">Line break</button>
+          <h2 class="sidebar-title">Panel tabs</h2>
+          <p class="hint">
+            Click a tab to edit that tab's tool layout on the canvas. Drag tab
+            buttons in the strip to reorder/resize them.
+          </p>
+          <nav id="tab-list" class="tab-list"></nav>
+
+          <h2 class="sidebar-title">How this works</h2>
+          <div class="help-copy">
+            <p>
+              Every icon, tool button, tab, section box and the viewport is a
+              real block from your UV Studio spec. Drag anywhere to move. Drag
+              the bottom-right corner to resize. Double-click a label to rename
+              it in place.
+            </p>
+            <p>
+              Switch tabs on the left to lay out each one separately — your
+              changes autosave in this browser. When you're happy, hit
+              <strong>Export layout</strong> and send me the JSON — I'll turn
+              it into real panel code.
+            </p>
           </div>
-          <h3>Common UI icons</h3>
-          <input
-            id="icon-search"
-            type="search"
-            placeholder="Search icons…"
-            autocomplete="off"
-          />
-          <div class="sidebar-scroll" id="icon-library"></div>
+
+          <details class="extras">
+            <summary>Extra tools (icons, group, lock)</summary>
+            <input id="icon-search" type="search" placeholder="Search icons…" />
+            <div id="icon-library" class="sidebar-scroll compact"></div>
+            <div class="mini-actions">
+              <button type="button" id="btn-group">Group</button>
+              <button type="button" id="btn-lock">Lock</button>
+              <button type="button" id="btn-forward">Forward</button>
+              <button type="button" id="btn-back">Back</button>
+            </div>
+          </details>
         </aside>
 
         <div class="canvas-wrap">
@@ -60,17 +81,22 @@
         </div>
 
         <aside class="sidebar right">
-          <h3>Inspector</h3>
-          <div class="sidebar-scroll" id="props-panel">
-            <p class="muted">Select an object to edit.</p>
+          <h2 class="sidebar-title">Selected item</h2>
+          <p class="hint">
+            Click any icon, button, section, tab or the viewport to edit it here
+            — or just drag it on the canvas.
+          </p>
+          <div id="props-panel" class="props-form">
+            <p class="muted">Nothing selected.</p>
           </div>
-          <h3>Layers</h3>
-          <div class="sidebar-scroll" id="layers-list"></div>
+
+          <h2 class="sidebar-title">Layout JSON</h2>
+          <textarea id="json-preview" class="json-preview" readonly spellcheck="false"></textarea>
         </aside>
 
         <footer class="statusbar" id="status">Ready</footer>
       </div>
     </div>
-    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/uv-designer.js"></script>
   </body>
 </html>

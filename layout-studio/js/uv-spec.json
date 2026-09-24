@@ -1,0 +1,345 @@
+{
+  "TAB_ORDER": [
+    "Edit",
+    "Layout",
+    "Pack",
+    "Groups",
+    "Density",
+    "Checks",
+    "Debug"
+  ],
+  "sections": {
+    "Layout": {
+      "Transform": [
+        {
+          "id": "rotate",
+          "label": "Rotate"
+        },
+        {
+          "id": "rotate_ccw",
+          "label": "Rotate +90"
+        },
+        {
+          "id": "rotate_cw",
+          "label": "Rotate -90"
+        },
+        {
+          "id": "scale",
+          "label": "Scale"
+        },
+        {
+          "id": "move",
+          "label": "Move"
+        },
+        {
+          "id": "nudge",
+          "label": "Nudge"
+        },
+        {
+          "id": "flip_u",
+          "label": "Flip U"
+        },
+        {
+          "id": "flip_v",
+          "label": "Flip V"
+        }
+      ],
+      "Align & Distribute": [
+        {
+          "id": "align_left",
+          "label": "Align L"
+        },
+        {
+          "id": "align_right",
+          "label": "Align R"
+        },
+        {
+          "id": "align_bottom",
+          "label": "Align B"
+        },
+        {
+          "id": "align_top",
+          "label": "Align T"
+        },
+        {
+          "id": "align_centre_u",
+          "label": "Centre U"
+        },
+        {
+          "id": "align_centre_v",
+          "label": "Centre V"
+        },
+        {
+          "id": "distribute_u",
+          "label": "Distribute U"
+        },
+        {
+          "id": "distribute_v",
+          "label": "Distribute V"
+        }
+      ],
+      "Orient": [
+        {
+          "id": "orient_shells",
+          "label": "Orient Shells"
+        },
+        {
+          "id": "orient_edge",
+          "label": "Orient to Edge"
+        },
+        {
+          "id": "straighten_pca",
+          "label": "Straighten (PCA)"
+        }
+      ]
+    },
+    "Edit": {
+      "Arrange": [
+        {
+          "id": "flip_native_u",
+          "label": "Flip U (Maya)"
+        },
+        {
+          "id": "normalize",
+          "label": "Normalize"
+        },
+        {
+          "id": "unitize",
+          "label": "Unitize"
+        },
+        {
+          "id": "layout_maya",
+          "label": "Layout (Maya)"
+        },
+        {
+          "id": "layout_u3d",
+          "label": "Layout (Unfold3D)"
+        }
+      ],
+      "Create": [
+        {
+          "id": "planar",
+          "label": "Planar"
+        },
+        {
+          "id": "cylindrical",
+          "label": "Cylindrical"
+        },
+        {
+          "id": "spherical",
+          "label": "Spherical"
+        },
+        {
+          "id": "automatic",
+          "label": "Automatic"
+        },
+        {
+          "id": "camera",
+          "label": "Camera-based"
+        },
+        {
+          "id": "contour",
+          "label": "Contour Stretch"
+        }
+      ],
+      "Cut & Sew": [
+        {
+          "id": "cut",
+          "label": "Cut"
+        },
+        {
+          "id": "sew",
+          "label": "Sew"
+        },
+        {
+          "id": "sew_move",
+          "label": "Move and Sew"
+        },
+        {
+          "id": "split",
+          "label": "Split UVs"
+        },
+        {
+          "id": "merge",
+          "label": "Merge UVs"
+        }
+      ],
+      "Interactive": [
+        {
+          "id": "cut_tool",
+          "label": "3D Cut and Sew UV Tool"
+        }
+      ],
+      "Unfold": [
+        {
+          "id": "unfold3d",
+          "label": "Unfold"
+        },
+        {
+          "id": "optimize",
+          "label": "Optimize"
+        },
+        {
+          "id": "straighten_uvs",
+          "label": "Straighten UVs"
+        },
+        {
+          "id": "straighten_border",
+          "label": "Straighten Border"
+        }
+      ],
+      "Pin": [
+        {
+          "id": "pin",
+          "label": "Pin"
+        },
+        {
+          "id": "unpin",
+          "label": "Unpin"
+        },
+        {
+          "id": "invert_pins",
+          "label": "Invert Pins"
+        }
+      ],
+      "Select": [
+        {
+          "id": "select_pinned",
+          "label": "Select Pinned"
+        }
+      ]
+    },
+    "Debug": {
+      "Tests": [
+        {
+          "id": "debug_all",
+          "label": "Run all tests"
+        },
+        {
+          "id": "debug_tools",
+          "label": "Tool test"
+        },
+        {
+          "id": "debug_split",
+          "label": "Split UVs check"
+        },
+        {
+          "id": "debug_pins",
+          "label": "Pin round-trip"
+        },
+        {
+          "id": "debug_viewport",
+          "label": "Pair-mode viewport"
+        },
+        {
+          "id": "debug_parity",
+          "label": "Option parity"
+        },
+        {
+          "id": "debug_self",
+          "label": "Self tests"
+        }
+      ]
+    },
+    "Groups": {
+      "Pairs": [
+        {
+          "id": "link_pair",
+          "label": "Pair Selected"
+        },
+        {
+          "id": "link_lock",
+          "label": "Lock Selected"
+        },
+        {
+          "id": "unlink",
+          "label": "Unlink"
+        },
+        {
+          "id": "list_links",
+          "label": "Show Links"
+        },
+        {
+          "id": "find_pairs",
+          "label": "Find Pairs"
+        },
+        {
+          "id": "stack_pairs",
+          "label": "Stack Pairs"
+        }
+      ],
+      "Stacks": [
+        {
+          "id": "stack_native",
+          "label": "Stack Similar (Maya)"
+        }
+      ]
+    },
+    "Pack": {
+      "Pack": [
+        {
+          "id": "analyze",
+          "label": "Analyze"
+        },
+        {
+          "id": "pack_preview",
+          "label": "Preview pack"
+        },
+        {
+          "id": "pack",
+          "label": "Pack"
+        }
+      ]
+    },
+    "Density": {
+      "Density": [
+        {
+          "id": "get_density",
+          "label": "Get Density"
+        },
+        {
+          "id": "set_density",
+          "label": "Set Density"
+        }
+      ]
+    },
+    "Checks": {
+      "Audit": [
+        {
+          "id": "check_overlaps",
+          "label": "Overlaps"
+        },
+        {
+          "id": "check_flipped",
+          "label": "Flipped"
+        },
+        {
+          "id": "check_density",
+          "label": "Density Audit"
+        },
+        {
+          "id": "check_bounds",
+          "label": "Out of Bounds"
+        }
+      ]
+    }
+  },
+  "ACTION_BAR": [
+    {
+      "id": "analyze",
+      "label": "Analyze"
+    },
+    {
+      "id": "pack_preview",
+      "label": "Preview pack"
+    },
+    {
+      "id": "pack",
+      "label": "Pack"
+    },
+    {
+      "id": "check_overlaps",
+      "label": "Overlaps"
+    }
+  ]
+}

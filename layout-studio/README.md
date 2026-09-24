@@ -1,6 +1,6 @@
-# Layout Studio
+# UV Studio — Layout Designer
 
-Lightweight browser wireframe canvas (Figma / Canva–style parity for UI layout planning). No build step — open in a browser or serve statically.
+Browser-based panel layout editor for **BG UV Studio**. Blocks match the real tool registry in `uvstudio_v5_1.py` (67 tools across Edit, Layout, Pack, Groups, Density, Checks, Debug).
 
 ## Quick start
 
@@ -11,22 +11,27 @@ python3 -m http.server 8765
 
 Open http://localhost:8765
 
-## Features
+## Workflow
 
-| Feature | How |
-|--------|-----|
-| Copy / paste | ⌘/Ctrl+C, ⌘/Ctrl+V (also duplicate with ⌘/Ctrl+D) |
-| Import menu layouts | Top dropdown — paste icons/panels from preset menus into the canvas |
-| Group / ungroup | Toolbar or ⌘G / ⌘⇧G |
-| Lock | Inspector, **L**, or lock badge on object |
-| Bring forward / back | Inspector or **]** / **[** |
-| Panel colors | Inspector color picker |
-| Line breaks | **Line break** tool |
-| Text & blocks | **Text label**, **Text field**, **Block**, **Panel** |
-| Icon library | Left sidebar — 50+ common UI icons by category |
+1. Pick a **panel tab** on the left — the canvas shows that tab’s sections and tool buttons plus shared viewport / action bar.
+2. **Drag** blocks to move; drag the **bottom-right corner** to resize.
+3. **Double-click** a label to rename in place.
+4. Toggle **Snap to grid** and **Zoom** in the header.
+5. Layout **autosaves** in your browser (`localStorage`).
+6. Click **Export layout** and send the JSON — it can be turned into real Qt panel code.
 
-Documents auto-save to `localStorage` via **Save**. **Export JSON** downloads the layout file.
+## Selected item inspector
 
-## Note
+Label, X, Y, W, H (and color). **Load a file…** restores a prior export.
 
-The Claude artifact link could not be fetched from this environment (bot protection). This app implements the requested canvas workflow as a standalone project in this repo.
+## Extra tools
+
+Icons, lock, and z-order live under **Extra tools** in the left sidebar. ⌘/Ctrl+C and ⌘/Ctrl+V copy and paste blocks.
+
+## Files
+
+| File | Role |
+|------|------|
+| `js/uv-spec.json` | Tool/tab data extracted from UV Studio |
+| `js/uv-designer.js` | Layout designer app |
+| `js/icons.js` | Optional common UI icons |
