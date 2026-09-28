@@ -38,8 +38,8 @@ import sys
 import types
 from collections import OrderedDict
 
-__version__ = "2.0.0"
-BUILD_STAMP = "2026-09-22 20:16"
+__version__ = "2.1.0"
+BUILD_STAMP = "2026-09-22 21:30"
 
 _SOURCES = OrderedDict()
 _BOOTSTRAP_ERRORS = OrderedDict()
@@ -4377,7 +4377,7 @@ import os
 import traceback
 from collections import OrderedDict
 
-__version__ = "3.7.0"
+__version__ = "3.8.0"
 MODULE_ID = "M5"
 
 IN_MAYA = True
@@ -4554,6 +4554,10 @@ class Tool(object):
                     raise ValueError("%s: field %r has no default for %r"
                                      % (tool_id, field.key, key))
 
+    def has_options(self):
+        """True when the floating option box would show at least one control."""
+        return bool(self.fields or self.sheet_fields())
+
     def inline_keys(self):
         keys = []
         for field in self.fields:
@@ -4641,9 +4645,11 @@ TOOLS = [
        tooltip="Rotate the selection about the pivot set at the top of the "
                "tab."),
     _t("rotate_ccw", "Rotate +90", "Layout", "Transform", handler="rotate",
-       defaults={"degrees": 90.0}, needs=SEL_ANY, uses_pivot=True),
+       defaults={"degrees": 90.0}, needs=SEL_ANY, uses_pivot=True,
+       tooltip="Rotate +90\u00b0 about the tab's pivot."),
     _t("rotate_cw", "Rotate -90", "Layout", "Transform", handler="rotate",
-       defaults={"degrees": -90.0}, needs=SEL_ANY, uses_pivot=True),
+       defaults={"degrees": -90.0}, needs=SEL_ANY, uses_pivot=True,
+       tooltip="Rotate \u221290\u00b0 about the tab's pivot."),
     _t("scale", "Scale", "Layout", "Transform", handler="scale",
        defaults={"factor": 2.0, "axis_u": True, "axis_v": True,
                  "prevent_negative": True, "snap_enabled": False,
@@ -4681,31 +4687,42 @@ TOOLS = [
        defaults={"normalizeType": 1}, needs=SEL_OBJECT,
        tooltip="Fit UVs into 0-1 space."),
     _t("unitize", "Unitize", "Edit", "Arrange", cmd_key="unitize",
-       defaults={"unitize": True}, needs=SEL_FACE),
+       defaults={"unitize": True}, needs=SEL_FACE,
+       tooltip="Fit each selected face's UVs into its own 0-1 square."),
 
     # ---- Layout / Align & Distribute ----------------------------------
     _t("align_left", "Align L", "Layout", "Align",
-       handler="align", defaults={"edge": "left"}, needs=SEL_ANY),
+       handler="align", defaults={"edge": "left"}, needs=SEL_ANY,
+       tooltip="Align shells to the leftmost edge of the selection."),
     _t("align_right", "Align R", "Layout", "Align",
-       handler="align", defaults={"edge": "right"}, needs=SEL_ANY),
+       handler="align", defaults={"edge": "right"}, needs=SEL_ANY,
+       tooltip="Align shells to the rightmost edge of the selection."),
     _t("align_bottom", "Align B", "Layout", "Align",
-       handler="align", defaults={"edge": "bottom"}, needs=SEL_ANY),
+       handler="align", defaults={"edge": "bottom"}, needs=SEL_ANY,
+       tooltip="Align shells to the bottom edge of the selection."),
     _t("align_top", "Align T", "Layout", "Align",
-       handler="align", defaults={"edge": "top"}, needs=SEL_ANY),
+       handler="align", defaults={"edge": "top"}, needs=SEL_ANY,
+       tooltip="Align shells to the top edge of the selection."),
     _t("distribute_u", "Distribute U", "Layout", "Distribute",
        handler="distribute", defaults={"axis": "u", "spacing": None},
        needs=SEL_ANY, fields=[_f("spacing", "float", label="gap", width=62,
-                  optional=True)]),
+                  optional=True)],
+       tooltip="Space shells evenly along U. Leave gap empty to keep the "
+               "current span."),
     _t("distribute_v", "Distribute V", "Layout", "Distribute",
        handler="distribute", defaults={"axis": "v", "spacing": None},
        needs=SEL_ANY, fields=[_f("spacing", "float", label="gap", width=62,
-                                 optional=True)]),
+                                 optional=True)],
+       tooltip="Space shells evenly along V. Leave gap empty to keep the "
+               "current span."),
 
     # ---- Layout / Orient ----------------------------------------------
     _t("orient_shells", "Orient Shells", "Layout", "Orient",
-       cmd_key="orient_shells", needs=SEL_UV),
+       cmd_key="orient_shells", needs=SEL_UV,
+       tooltip="Maya's orient shells: rotate each shell upright."),
     _t("orient_edge", "Orient to Edge", "Layout", "Orient",
-       cmd_key="orient_edge", needs=SEL_EDGE),
+       cmd_key="orient_edge", needs=SEL_EDGE,
+       tooltip="Rotate shells so the selected edge lies along U."),
     _t("straighten_pca", "Straighten (PCA)", "Layout", "Orient",
        handler="orient_pca", defaults={"snap": 0.0}, needs=SEL_ANY,
        tooltip="Rotate each shell so its long axis lies along U."),
@@ -4739,7 +4756,8 @@ TOOLS = [
        cmd_key="stack_similar", needs=SEL_OBJECT, width=96,
        defaults={"tolerance": 0.001},
        fields=[_f("tolerance", "float", label="Tolerance", width=70,
-                  decimals=5, verified=False)]),
+                  decimals=5, verified=False)],
+       tooltip="Maya's stack similar shells within the given tolerance."),
 
     # ---- Layout / Pack -------------------------------------------------
     _t("analyze", "Analyze", "Pack", "Pack", handler="analyze",
@@ -4793,25 +4811,31 @@ TOOLS = [
                     verified=False),
                  _f("layout", "int", label="Layout mode", verified=False),
                  _f("separate", "int", label="Separate mode",
-                    verified=False)]),
+                    verified=False)],
+       tooltip="Maya's polyLayoutUV. Quick native pack; does not honour "
+               "UV Studio pins or pairs."),
     _t("layout_u3d", "Layout (Unfold3D)", "Edit", "Arrange",
        cmd_key="layout_u3d", needs=SEL_OBJECT, width=96,
        defaults={"res": 256, "spacing": 0.002, "rot": 2},
        fields=[_f("spacing", "float", label="Spacing", width=62, decimals=4,
                   verified=False)],
        advanced=[_f("res", "int", label="Resolution", verified=False),
-                 _f("rot", "int", label="Rotation step", verified=False)]),
+                 _f("rot", "int", label="Rotation step", verified=False)],
+       tooltip="Unfold3D layout. Native packing with spacing and rotation "
+               "steps."),
 
     # ---- Layout / Density ----------------------------------------------
     _t("get_density", "Get Density", "Density", "Density",
        cmd_key="get_density", defaults={"mapSize": 512}, needs=SEL_FACE,
        fidelity="none", width=62,
-       fields=[_f("mapSize", "int", label="Map size", width=70)]),
+       fields=[_f("mapSize", "int", label="Map size", width=70)],
+       tooltip="Report texel density for the selected faces."),
     _t("set_density", "Set Density", "Density", "Density",
        cmd_key="set_density", defaults={"density": 10.24, "mapSize": 512},
        needs=SEL_FACE, width=62,
        fields=[_f("density", "float", label="px/unit", width=80),
-               _f("mapSize", "int", label="Map size", width=70)]),
+               _f("mapSize", "int", label="Map size", width=70)],
+       tooltip="Scale selected faces to the target texel density."),
 
     # ---- Create ---------------------------------------------------------
     # Flag names below come from the Maya command reference, not from a
@@ -4824,7 +4848,8 @@ TOOLS = [
        needs=SEL_FACE, fidelity="topology", width=96,
        fields=[_f("mapDirection", "enum", label="Axis",
                   options=["x", "y", "z", "c", "b"], width=56)],
-       advanced=[_f("keepImageRatio", "bool", label="Keep image ratio")]),
+       advanced=[_f("keepImageRatio", "bool", label="Keep image ratio")],
+       tooltip="Planar projection along the chosen axis."),
     _t("cylindrical", "Cylindrical", "Edit", "Create",
        cmd_key="cylindrical", needs=SEL_FACE, fidelity="topology", width=96,
        # Maya 2022 defaults, from the polyCylindricalProjection reference:
@@ -4837,14 +4862,16 @@ TOOLS = [
        fields=[_f("projectionHorizontalSweep", "float", label="Sweep",
                   unit="\u00b0", width=62, decimals=1)],
        advanced=[_f("projectionScaleV", "float", label="Height"),
-                 _f("keepImageRatio", "bool", label="Keep image ratio")]),
+                 _f("keepImageRatio", "bool", label="Keep image ratio")],
+       tooltip="Cylindrical projection. Sweep is degrees around the cylinder."),
     _t("spherical", "Spherical", "Edit", "Create",
        cmd_key="spherical", needs=SEL_FACE, fidelity="topology", width=96,
        defaults={"projectionScaleU": 180.0, "projectionScaleV": 90.0},
        fields=[_f("projectionScaleU", "float", label="Sweep U", unit="\u00b0",
                   width=56, decimals=1),
                _f("projectionScaleV", "float", label="V", unit="\u00b0",
-                  width=56, decimals=1)]),
+                  width=56, decimals=1)],
+       tooltip="Spherical projection. Sweep U/V set the mapped angles."),
     _t("automatic", "Automatic", "Edit", "Create", cmd_key="automatic",
        defaults={"planes": 6, "percentageSpace": 0.2, "optimize": 1},
        needs=SEL_FACE, fidelity="topology", width=96,
@@ -4853,11 +4880,14 @@ TOOLS = [
                _f("percentageSpace", "float", label="Gap %", width=56,
                   decimals=2, verified=False)],
        advanced=[_f("optimize", "int", label="Optimize mode",
-                    verified=False)]),
+                    verified=False)],
+       tooltip="Automatic multi-plane projection with packing gap."),
     _t("camera", "Camera-based", "Edit", "Create", cmd_key="camera",
-       needs=SEL_FACE, fidelity="topology"),
+       needs=SEL_FACE, fidelity="topology",
+       tooltip="Project UVs from the active camera view."),
     _t("contour", "Contour Stretch", "Edit", "Create",
-       cmd_key="contour", needs=SEL_FACE, fidelity="topology"),
+       cmd_key="contour", needs=SEL_FACE, fidelity="topology",
+       tooltip="Contour-stretch projection along the selection."),
 
     # ---- Cut & Sew -------------------------------------------------------
     _t("cut", "Cut", "Edit", "Cut & Sew", handler="cut", needs=SEL_ANY,
@@ -4897,7 +4927,8 @@ TOOLS = [
        defaults={"distance": 0.001}, needs=SEL_UV, fidelity="topology",
        width=96,
        fields=[_f("distance", "float", label="Within", width=70,
-                  decimals=5)]),
+                  decimals=5)],
+       tooltip="Merge selected UVs that lie within the distance threshold."),
 
     # ---- Unfold -----------------------------------------------------------
     _t("unfold3d", "Unfold", "Edit", "Unfold", cmd_key="unfold",
@@ -4926,36 +4957,47 @@ TOOLS = [
                   maximum=1024, width=70, group="Room Space Options",
                   verified=False)]),
     _t("optimize", "Optimize", "Edit", "Unfold", cmd_key="optimize",
-       defaults={"iterations": 1}, needs=SEL_UV, fidelity="snapshot"),
+       defaults={"iterations": 1}, needs=SEL_UV, fidelity="snapshot",
+       tooltip="Relax UVs to reduce distortion. Pin holds still."),
     _t("straighten_uvs", "Straighten UVs", "Edit", "Unfold",
-       cmd_key="straighten_uvs", needs=SEL_UV, fidelity="snapshot"),
+       cmd_key="straighten_uvs", needs=SEL_UV, fidelity="snapshot",
+       tooltip="Straighten selected UV paths toward axis-aligned edges."),
     _t("straighten_border", "Straighten Border", "Edit", "Unfold",
-       cmd_key="straighten_border", needs=SEL_EDGE, fidelity="snapshot"),
+       cmd_key="straighten_border", needs=SEL_EDGE, fidelity="snapshot",
+       tooltip="Straighten the UV border along the selected edges."),
 
     # ---- Pin ---------------------------------------------------------------
     _t("pin", "Pin", "Edit", "Pin", handler="pin", defaults={"value": 1.0},
-       needs=SEL_UV),
+       needs=SEL_UV,
+       tooltip="Pin selected UVs so unfold and pack leave them alone."),
     _t("unpin", "Unpin", "Edit", "Pin", handler="pin", defaults={"value": 0.0},
-       needs=SEL_UV),
+       needs=SEL_UV,
+       tooltip="Clear the pin on selected UVs."),
     _t("invert_pins", "Invert Pins", "Edit", "Pin", handler="invert_pins",
-       needs=SEL_OBJECT),
+       needs=SEL_OBJECT,
+       tooltip="Swap pinned and unpinned UVs on the mesh."),
     _t("select_pinned", "Select Pinned", "Edit", "Select",
-       handler="select_pinned", needs=SEL_OBJECT, fidelity="none"),
+       handler="select_pinned", needs=SEL_OBJECT, fidelity="none",
+       tooltip="Select every currently pinned UV."),
 
     # ---- Check --------------------------------------------------------------
     _t("check_overlaps", "Overlaps", "Checks", "Audit", handler="check_overlaps",
-       needs=SEL_OBJECT, fidelity="none"),
+       needs=SEL_OBJECT, fidelity="none",
+       tooltip="Report overlapping shells. Changes nothing."),
     _t("check_flipped", "Flipped", "Checks", "Audit", handler="check_flipped",
-       needs=SEL_OBJECT, fidelity="none"),
+       needs=SEL_OBJECT, fidelity="none",
+       tooltip="Report shells with reversed winding. Changes nothing."),
     _t("check_density", "Density Audit", "Checks", "Audit",
        handler="check_density",
        defaults={"map_size": 1024, "target": None}, needs=SEL_OBJECT,
        fidelity="none",
        fields=[_f("map_size", "int", label="Map size", width=70)],
        advanced=[_f("target", "float", label="Target px/unit",
-                    optional=True)]),
+                    optional=True)],
+       tooltip="Report texel density vs an optional target. Changes nothing."),
     _t("check_bounds", "Out of Bounds", "Checks", "Audit",
-       handler="check_bounds", needs=SEL_OBJECT, fidelity="none"),
+       handler="check_bounds", needs=SEL_OBJECT, fidelity="none",
+       tooltip="Report UVs outside the active UDIM tiles. Changes nothing."),
 ]
 
 
@@ -5625,6 +5667,12 @@ def run_self_test():
     _check_wrap("no action-bar tool writes except Pack",
                 [t for t in ACTION_BAR if t != "pack"
                  and find_tool(t).fidelity != "none"], [])
+    bare = [t.tool_id for t in TOOLS if not (t.tooltip or "").strip()]
+    _check_wrap("every tool has a tooltip", bare, [])
+    empty_opts = [t.tool_id for t in TOOLS
+                  if t.options_only and not t.has_options()]
+    _check_wrap("every options_only tool has settings to show",
+                empty_opts, [])
 
     print("\n--- pivot ---")
     prefs = Preferences(folder=tempfile.mkdtemp())
@@ -7697,18 +7745,20 @@ PURPOSE
     The tools panel M1 hosts. Collapsible, reorderable sections; one row per
     tool; the row carries the tool's own controls.
 
-LAYOUT (the "B" layout, chosen over a Maya UV Toolkit recreation)
-    Tab
-      Pivot strip          one per tab, owns the pivot for every transform in
-                           it; Maya repeats pivot state inside each tool and
-                           lets the copies disagree
+LAYOUT (Maya UV Toolkit–adjacent, east tabs)
+    East tab bar           Edit / Layout / Pack / Groups / Density / Checks
+      Pivot strip          one per transform tab; owns pivot for every tool
+                           in that tab (Maya repeats pivot per tool; we do not)
       Section  [header ^ v]
-        [ Tool ][ field ][ field ]        <- the button and its values on one
-        [ Tool ][ field ]                    row, so "what it does" and "what
-        [ Tool ]                             it does it with" read together
+        [ Tool ][ field ][ field ][ □ ]   <- button, inline tweaks, option box
+        [ Tool ][ □ ]                        options_only: button + option box
+    Below every tab
+      Counters             units / pairs / stacks / fixed
+      Action bar           Analyze / Preview / Pack[□] / Overlaps
+      Status               last result + Reset order / Copy report
 
-    Left-click runs the tool on its current values. Right-click opens the
-    settings sheet, which holds the rest.
+    Left-click runs the tool on its current values. The option-box icon (and
+    right-click → Options…) opens the floating Apply / Accept / Close sheet.
 
 TWO ROUTES, ONE STORED VALUE
     An inline field and its entry in the settings sheet are two controls over
@@ -7734,7 +7784,7 @@ import sys
 import traceback
 from collections import OrderedDict
 
-__version__ = "4.2.0"
+__version__ = "4.3.0"
 MODULE_ID = "M5c"
 
 QT_BINDING = None
@@ -7855,7 +7905,115 @@ QScrollArea { border: none; background: %(panel)s; }
 QTreeWidget, QPlainTextEdit, QTextBrowser {
     background: %(field)s; border: 1px solid %(border)s; color: %(text)s;
 }
+
+/* East tab strip — Maya toolkit weight, accent on the active tab */
+QTabWidget::pane {
+    border: 1px solid %(border)s;
+    background: %(panel)s;
+    top: -1px;
+}
+QTabBar::tab {
+    background: %(section)s;
+    color: %(muted)s;
+    border: 1px solid %(border)s;
+    padding: 7px 5px;
+    min-width: 18px;
+    margin: 1px 0;
+}
+QTabBar::tab:selected {
+    background: %(control)s;
+    color: %(text)s;
+    border-left: 2px solid %(accent)s;
+}
+QTabBar::tab:hover:!selected {
+    color: %(text)s;
+    background: %(control_lo)s;
+}
+
+QWidget#uvStudioSectionHeader {
+    background: %(section)s;
+    border-top: 1px solid #444444;
+    border-bottom: 1px solid %(border)s;
+}
+QLabel#uvStudioSectionTitle {
+    color: %(text)s;
+    font-weight: 600;
+    background: transparent;
+}
+QWidget#uvStudioCounters {
+    background: %(section)s;
+    border: 1px solid %(border)s;
+    border-radius: 2px;
+}
+QLabel#uvStudioCounterCell {
+    background: rgba(0, 0, 0, 50);
+    border-radius: 2px;
+    padding: 4px;
+    color: %(muted)s;
+}
+QWidget#uvStudioActionBar {
+    background: %(section)s;
+    border-top: 1px solid #444444;
+    border-bottom: 1px solid %(border)s;
+    padding: 2px 0;
+}
+QPushButton#uvStudioPrimaryAction {
+    background: %(accent_lo)s;
+    color: #ffffff;
+    font-weight: 500;
+    border: 1px solid %(accent)s;
+}
+QPushButton#uvStudioPrimaryAction:hover { background: %(accent)s; }
+QPushButton#uvStudioOptionBoxButton {
+    background: transparent;
+    border: none;
+    padding: 0px;
+}
+QPushButton#uvStudioOptionBoxButton:hover {
+    background: %(control_hi)s;
+    border-radius: 2px;
+}
+QLabel#uvStudioStatus {
+    color: %(muted)s;
+    padding: 2px 0;
+}
+QDialog#uvStudioOptionBox {
+    background: %(panel)s;
+}
+QLabel#uvStudioOptionHead {
+    color: %(text)s;
+    font-weight: 600;
+    font-size: 12px;
+    background: transparent;
+}
+QLabel#uvStudioOptionGroup {
+    background: %(section)s;
+    color: %(text)s;
+    padding: 3px 6px;
+    font-weight: 600;
+    border-top: 1px solid #444444;
+}
+QPushButton#uvStudioOptionAccept {
+    background: %(accent)s;
+    color: #ffffff;
+    border: 1px solid %(accent_lo)s;
+    font-weight: 500;
+}
+QPushButton#uvStudioOptionAccept:hover { background: %(accent_lo)s; }
 """ % COL
+
+
+# Icon glyphs drawn beside particular tools (Maya UV Toolkit reading).
+_TOOL_ICONS = {
+    "rotate_ccw": "rot_ccw",
+    "rotate_cw": "rot_cw",
+    "align_left": "left",
+    "align_right": "right",
+    "align_bottom": "down",
+    "align_top": "up",
+    "flip_u": "flip",
+    "flip_v": "flip",
+}
 
 
 def _icon(kind, size=16, colour="#d8d8d8"):
@@ -8581,6 +8739,11 @@ class ToolRow(_Widget):
 
         self.button = QtWidgets.QPushButton(tool.label)
         self.button.setFixedHeight(ROW_HEIGHT + 6)
+        icon_kind = _TOOL_ICONS.get(tool.tool_id)
+        if icon_kind:
+            ico = _icon(icon_kind)
+            if ico is not None:
+                self.button.setIcon(ico)
         if tool.width:
             # MINIMUM, not fixed. A fixed width clipped "Layout (Maya)" to
             # "ayout (Maya" in Maya 2022 - Qt centres and clips from both
@@ -8605,7 +8768,8 @@ class ToolRow(_Widget):
         resolved = panel.resolved_name(tool)
         if resolved:
             tip.append("Runs %s" % resolved)
-        tip.append("Right-click for more settings.")
+        if tool.has_options():
+            tip.append("Option box or right-click \u2192 Options\u2026")
         self.button.setToolTip("\n".join(tip))
         row.addWidget(self.button)
 
@@ -8627,6 +8791,7 @@ class ToolRow(_Widget):
             if ico is not None:
                 btn.setIcon(ico)
             btn.setFixedSize(ROW_HEIGHT, ROW_HEIGHT)
+            btn.setObjectName("uvStudioOptionBoxButton")
             btn.setToolTip(tip)
             btn.clicked.connect(
                 lambda _c=False, r=run_id, o=overrides:
@@ -8637,12 +8802,13 @@ class ToolRow(_Widget):
         # option-box mark, which opens the floating Apply/Accept/Close window.
         # A tool with no settings gets none - an option box with nothing in it
         # is a promise the tool cannot keep.
-        if tool.fields or tool.sheet_fields():
+        if tool.has_options():
             opt = QtWidgets.QPushButton()
             ico = _icon("optionbox")
             if ico is not None:
                 opt.setIcon(ico)
             opt.setFixedSize(ROW_HEIGHT, ROW_HEIGHT)
+            opt.setObjectName("uvStudioOptionBoxButton")
             opt.setToolTip("%s options\u2026" % tool.label)
             opt.clicked.connect(lambda _c=False: self.panel.open_options(
                 self.tool))
@@ -8651,15 +8817,6 @@ class ToolRow(_Widget):
         row.addStretch(1)
 
     def _row_icons(self):
-        """(icon, tool id, overrides, tooltip) buttons for this tool's row."""
-        if self.tool.tool_id == "rotate":
-            return [("rot_ccw", "rotate", {"degrees": 90.0},
-                     "Rotate +90\u00b0"),
-                    ("rot_cw", "rotate", {"degrees": -90.0},
-                     "Rotate \u221290\u00b0")]
-        if self.tool.tool_id == "scale":
-            return [("scale", "scale", None, "Apply scale")]
-        return []
         """(icon, tool id, overrides, tooltip) buttons for this tool's row."""
         if self.tool.tool_id == "rotate":
             return [("rot_ccw", "rotate", {"degrees": 90.0},
@@ -8696,9 +8853,10 @@ class ToolRow(_Widget):
 
     def _context_menu(self, point):
         menu = QtWidgets.QMenu(self)
-        menu.addAction("Settings\u2026",
-                       lambda: self.panel.open_settings(self.tool, self))
-        menu.addSeparator()
+        if self.tool.has_options():
+            menu.addAction("Options\u2026",
+                           lambda: self.panel.open_options(self.tool))
+            menu.addSeparator()
         menu.addAction("Reset to defaults",
                        lambda: self.panel.reset_tool(self.tool, self))
         menu.addAction("Copy settings",
@@ -8760,10 +8918,8 @@ class ToolSection(_Widget):
 
     def _build_header(self):
         header = QtWidgets.QWidget()
+        header.setObjectName("uvStudioSectionHeader")
         header.setFixedHeight(22)
-        header.setStyleSheet(
-            "background: %s; border-top: 1px solid #444;"
-            " border-bottom: 1px solid %s;" % (COL["section"], COL["border"]))
         row = QtWidgets.QHBoxLayout(header)
         row.setContentsMargins(6, 0, 4, 0)
         row.setSpacing(4)
@@ -8772,11 +8928,12 @@ class ToolSection(_Widget):
         self.toggle.setAutoRaise(True)
         self.toggle.setCheckable(True)
         self.toggle.setText("\u25be")
+        self.toggle.setToolTip("Collapse or expand this section")
         self.toggle.clicked.connect(self._on_toggle)
         row.addWidget(self.toggle)
 
         label = QtWidgets.QLabel(self.name)
-        label.setStyleSheet("font-weight: 600;")
+        label.setObjectName("uvStudioSectionTitle")
         row.addWidget(label)
         row.addStretch(1)
 
@@ -8816,13 +8973,14 @@ class ToolSection(_Widget):
 
 class ToolOptionBox(_Dialog):
     """A Maya-style option box: a floating window with every tweakable setting
-    for one tool, and the three buttons Maya artists reach for without
-    thinking.
+    for one tool, and the buttons Maya artists reach for without thinking.
 
         Apply   - write the settings, run the tool, LEAVE THE WINDOW OPEN.
                   For iterating: nudge a value, Apply, look, nudge again.
         Accept  - write the settings, run the tool, CLOSE.
-        Close   - shut the window, changing nothing since it opened.
+                  Primary button is named after the tool (e.g. "Pack").
+        Close   - shut the window without applying edits since the last Apply.
+                  Earlier Applies stay; only un-Applied edits are dropped.
 
     "Close" rather than "Cancel" because settings written by an earlier Apply
     are real and stay; only settings edited AFTER the last Apply are dropped,
@@ -8837,16 +8995,18 @@ class ToolOptionBox(_Dialog):
         self.tool = tool
         self.panel = panel
         self.widgets = []
+        self.setObjectName("uvStudioOptionBox")
         self.setWindowTitle("%s Options" % tool.label)
         self.setModal(False)
-        self.setMinimumWidth(300)
+        self.setMinimumWidth(320)
+        self.setStyleSheet(PANEL_QSS)
 
         outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(10, 10, 10, 10)
         outer.setSpacing(8)
 
         head = QtWidgets.QLabel(tool.label)
-        head.setStyleSheet("font-weight: 600; font-size: 12px;")
+        head.setObjectName("uvStudioOptionHead")
         outer.addWidget(head)
         if tool.tooltip:
             blurb = QtWidgets.QLabel(tool.tooltip)
@@ -8880,10 +9040,7 @@ class ToolOptionBox(_Dialog):
         for group_name, group_fields in groups.items():
             if group_name:
                 header = QtWidgets.QLabel(group_name)
-                header.setStyleSheet(
-                    "background: %s; color: %s; padding: 3px 6px;"
-                    " font-weight: 600; border-top: 1px solid #444;"
-                    % (COL["section"], COL["text"]))
+                header.setObjectName("uvStudioOptionGroup")
                 outer.addWidget(header)
 
             block = QtWidgets.QWidget()
@@ -8917,10 +9074,8 @@ class ToolOptionBox(_Dialog):
 
         outer.addStretch(1)
 
-        # Maya's three-button footer: the PRIMARY button is named after the
-        # tool ("Layout UVs", "Unfold UVs") and does Accept - apply and close.
-        # Apply runs and stays open; Close discards edits since the last Apply.
-        # Reset sits apart on the left.
+        # Footer: Reset on the left; Apply / Accept (tool-named primary) /
+        # Close on the right — Maya option-box reading order.
         bar = QtWidgets.QHBoxLayout()
         bar.setSpacing(6)
         reset = QtWidgets.QPushButton("Reset")
@@ -8929,22 +9084,22 @@ class ToolOptionBox(_Dialog):
         reset.clicked.connect(self._reset)
         bar.addWidget(reset)
         bar.addStretch(1)
-        for text, slot, tip, primary in (
-                (tool.label, self._accept,
-                 "Apply the settings, run %s, and close." % tool.label,
-                 True),
+        for text, slot, tip, primary, obj_name in (
                 ("Apply", self._apply,
                  "Apply the settings and run the tool. Leaves this open.",
-                 False),
+                 False, ""),
+                (tool.label, self._accept,
+                 "Apply the settings, run %s, and close." % tool.label,
+                 True, "uvStudioOptionAccept"),
                 ("Close", self.close,
                  "Close without applying anything edited since the last "
-                 "Apply.", False)):
+                 "Apply.", False, "")):
             btn = QtWidgets.QPushButton(text)
             btn.setToolTip(tip)
             btn.setMinimumWidth(96)
             btn.setDefault(primary)
-            if primary:
-                btn.setStyleSheet("background: %s;" % COL["accent"])
+            if obj_name:
+                btn.setObjectName(obj_name)
             btn.clicked.connect(slot)
             bar.addWidget(btn)
         outer.addLayout(bar)
@@ -9385,11 +9540,13 @@ class UVStudioToolsPanel(_Widget):
 
         row = QtWidgets.QHBoxLayout()
         self.status = QtWidgets.QLabel("")
+        self.status.setObjectName("uvStudioStatus")
         self.status.setWordWrap(True)
         row.addWidget(self.status, 1)
         for text, slot in (("Reset order", self.reset_order),
                            ("Copy report", self._copy_report)):
             button = QtWidgets.QPushButton(text)
+            button.setToolTip(text)
             button.clicked.connect(slot)
             row.addWidget(button)
         outer.addLayout(row)
@@ -9520,18 +9677,18 @@ class UVStudioToolsPanel(_Widget):
         wrong one.
         """
         holder = QtWidgets.QWidget()
+        holder.setObjectName("uvStudioCounters")
         row = QtWidgets.QHBoxLayout(holder)
-        row.setContentsMargins(0, 2, 0, 2)
+        row.setContentsMargins(4, 4, 4, 4)
         row.setSpacing(4)
         self.counters = OrderedDict()
         for key, label in (("units", "units"), ("pairs", "pairs"),
                            ("stacks", "stacks"), ("fixed", "fixed")):
             cell = QtWidgets.QLabel("\u2014\n%s" % label)
+            cell.setObjectName("uvStudioCounterCell")
             cell.setAlignment(
                 _enum(QtCore.Qt, "AlignmentFlag.AlignCenter", "AlignCenter"))
-            cell.setStyleSheet(
-                "background: rgba(0,0,0,50); border-radius: 3px;"
-                " padding: 4px; color: %s;" % MUTED)
+            cell.setToolTip("Filled by Analyze. Em-dash until measured.")
             self.counters[key] = cell
             row.addWidget(cell, 1)
         return holder
@@ -9544,9 +9701,7 @@ class UVStudioToolsPanel(_Widget):
             cell.setText("%s\n%s" % ("\u2014" if value is None else value,
                                      key))
             cell.setStyleSheet(
-                "background: rgba(0,0,0,50); border-radius: 3px;"
-                " padding: 4px; color: %s;"
-                % (MUTED if value is None else "#e0e0e0"))
+                "color: %s;" % (MUTED if value is None else "#e0e0e0"))
 
     def _build_action_bar(self):
         """Analyze, Preview, Pack, Check — reachable from every tab.
@@ -9554,10 +9709,15 @@ class UVStudioToolsPanel(_Widget):
         Pack is the only one that writes, and is the only one styled as a
         primary action. Giving the read-only three the same weight would
         make the destructive one no easier to pick out than the safe ones.
+
+        Options-only tools on this bar (Pack) also get Maya's option-box
+        icon and a right-click → Options… path, since there is no tool row
+        visible when another tab is open.
         """
         holder = QtWidgets.QWidget()
+        holder.setObjectName("uvStudioActionBar")
         row = QtWidgets.QHBoxLayout(holder)
-        row.setContentsMargins(0, 0, 0, 0)
+        row.setContentsMargins(4, 4, 4, 4)
         row.setSpacing(4)
         # Kept on the panel so the buttons cannot be collected while the
         # layout still shows them.
@@ -9570,17 +9730,24 @@ class UVStudioToolsPanel(_Widget):
                 tool = self.registry.find_tool(tool_id)
             except Exception:
                 continue
+            cell = QtWidgets.QWidget()
+            cell_row = QtWidgets.QHBoxLayout(cell)
+            cell_row.setContentsMargins(0, 0, 0, 0)
+            cell_row.setSpacing(2)
+
             button = QtWidgets.QPushButton(tool.label)
             button.setFixedHeight(ROW_HEIGHT + 6)
-            button.setToolTip(tool.tooltip or tool.label)
+            tip = [tool.tooltip or tool.label]
             writes = tool.fidelity != "none"
             if writes:
-                button.setStyleSheet(
-                    "background: #3f6d8a; color: #ffffff; font-weight: 500;")
+                button.setObjectName("uvStudioPrimaryAction")
             available, reason = self.availability(tool)
             if not available:
                 button.setEnabled(False)
-                button.setToolTip("Unavailable: %s" % reason)
+                tip = ["Unavailable: %s" % reason]
+            elif tool.has_options():
+                tip.append("Option box or right-click \u2192 Options\u2026")
+            button.setToolTip("\n".join(tip))
             # The tool id rides on the button and is read back from the
             # sender, rather than captured in a lambda. The section buttons
             # connect to a bound method and demonstrably fire in Maya; the
@@ -9589,9 +9756,29 @@ class UVStudioToolsPanel(_Widget):
             # three lines away.
             button.setProperty("uvs_tool", tool_id)
             button.clicked.connect(self._action_clicked)
+            if tool.has_options():
+                button.setContextMenuPolicy(
+                    _enum(QtCore.Qt, "ContextMenuPolicy.CustomContextMenu",
+                          "CustomContextMenu"))
+                button.customContextMenuRequested.connect(
+                    self._action_context_menu)
+            cell_row.addWidget(button, 1)
+
+            if tool.has_options():
+                opt = QtWidgets.QPushButton()
+                ico = _icon("optionbox")
+                if ico is not None:
+                    opt.setIcon(ico)
+                opt.setFixedSize(ROW_HEIGHT, ROW_HEIGHT)
+                opt.setObjectName("uvStudioOptionBoxButton")
+                opt.setToolTip("%s options\u2026" % tool.label)
+                opt.setProperty("uvs_tool", tool_id)
+                opt.clicked.connect(self._action_options_clicked)
+                cell_row.addWidget(opt, 0)
+
             self._action_buttons.append(button)
             wired.append(tool_id)
-            row.addWidget(button, 2 if writes else 1)
+            row.addWidget(cell, 2 if writes else 1)
         self.log("INFO", "Action bar wired: %s" % (", ".join(wired) or "none"))
         return holder
 
@@ -9603,6 +9790,31 @@ class UVStudioToolsPanel(_Widget):
             self.log("ERROR", "An action button fired with no tool attached.")
             return
         self.run_tool_id(tool_id)
+
+    def _action_options_clicked(self):
+        """Option-box icon on the action bar (Pack and any future peers)."""
+        sender = self.sender()
+        tool_id = sender.property("uvs_tool") if sender is not None else None
+        if not tool_id or self.registry is None:
+            return
+        try:
+            tool = self.registry.find_tool(tool_id)
+        except Exception:
+            return
+        self.open_options(tool)
+
+    def _action_context_menu(self, point):
+        sender = self.sender()
+        tool_id = sender.property("uvs_tool") if sender is not None else None
+        if not tool_id or self.registry is None:
+            return
+        try:
+            tool = self.registry.find_tool(tool_id)
+        except Exception:
+            return
+        menu = QtWidgets.QMenu(self)
+        menu.addAction("Options\u2026", lambda: self.open_options(tool))
+        menu.exec_(sender.mapToGlobal(point))
 
     # -- tool plumbing ----------------------------------------------------
     def availability(self, tool):
@@ -11815,20 +12027,3 @@ if __name__ == "__main__":
                                                                 BUILD_STAMP))
         for name, state in status().items():
             print("  %-30s %s" % (name, state))
-"Think like a senior engineer who just joined an unfamiliar codebase. Understand the architecture and data flow, then identify: structural problems duplicated code, bottlenecks, maintainability risks Give me: architecture summary, problem areas refactoring strategy, improved code. Keep functionality unchanged.
-
- @UV Studio – Long-Term Plan (1).docx 
-
-Please follow this plan
-
-please have an agent:
-Iterate on the layout. Please act like a design expert and start finalizing the the design of the ui on this product. This needs to consumer visible. Not confusing and have icons and tool tips where needed. All tools that have the options that need te be tweakable must have an icon to open these options in a floating window. This needs to follow Maya's traditional ux workflow with apply, accept, and cancel buttons
-
-Apply: apply the new settings and activates the tool with those settings. But leaves the window open.
-
-Accept: accepts the settings and apply the tool then closes the window.
-
- Cancel: closes the window with out applying any thing
-
-
-If you have questions while working ask and do not move on till answered
