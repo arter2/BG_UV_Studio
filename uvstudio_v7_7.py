@@ -7161,6 +7161,12 @@ PANEL_LAYOUT = OrderedDict([
                             c_run("align_centre_v", "", "align_centre_v", 1),
                             c_run("align_bottom", "", "align_bottom", 1),
                             c_run("linear_align", "Linear", None, 2)]),
+            # Distribute sits under Align, as it did in the Align &
+            # Distribute section of earlier builds: the two are used together.
+            r_row("Distribute", [c_run("distribute_u", "Horizontal",
+                                       "distribute_u", 1.5),
+                                 c_run("distribute_v", "Vertical",
+                                       "distribute_v", 1.5)]),
             r_row("Snap", [c_choice("snap_tile", "anchor", _SNAP9, 1),
                            c_label("U"), c_num("snap_tile", "u0", 0.6, 2),
                            c_num("snap_tile", "u1", 0.6, 2),
