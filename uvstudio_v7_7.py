@@ -21,15 +21,19 @@ WHAT IS INSIDE
     M5b handlers: pack, align, stack, pins, QC
     M5c panel widgets: reorderable collapsible sections
     M6  texture transfer: textures follow re-laid-out UV shells
+    M9  cluster map: drag shells on a map, routed through the tool runner
+
+SOURCE
+    src/uvstudio/*.py, built by tools/build.py (run with --check in CI).
 
 SELF TESTS
     uvstudio.self_test()            every module that can run headless
-    uvstudio.m3.run_self_test()     one module directly
+    uvstudio.m4.run_self_test()     one module directly
 
 WHY MODULES ARE KEPT SEPARATE INSIDE ONE FILE
     Each source is executed into its own module object rather than flattened
-    into a single namespace. Five of them define run_self_test, and several
-    share private helper names; flattening would silently lose four test
+    into a single namespace. Seven of them define run_self_test, and several
+    share private helper names; flattening would silently lose six test
     suites and produce a build that looks fine and is not.
 """
 
@@ -17576,17 +17580,57 @@ def parity(write=True):
     return rows
 
 
+class _HeadlessBridge(object):
+    """Load M2 against stub maya modules for the duration of one test.
+
+    Outside Maya, M2 fails at import and _bootstrap drops it, so M5b's test -
+    which needs M2's pure data classes and drives every handler through a fake
+    bridge - reported FAIL without running a single case. The stubs and the
+    test-only M2 are removed afterwards, so status() and show() still see the
+    real state. Inside Maya M2 is already loaded and this does nothing.
+    """
+
+    NAME = "uvstudio_m2_scene_bridge"
+
+    def __enter__(self):
+        self._before = set(sys.modules)
+        if m2 is not None or m5b is None:
+            return self
+        m5b._install_test_stubs()
+        module = types.ModuleType(self.NAME)
+        module.__dict__["__file__"] = "<uvstudio bundle>"
+        sys.modules[self.NAME] = module
+        try:
+            exec(compile(_SOURCES[self.NAME], "<uvstudio:%s>" % self.NAME,
+                         "exec"), module.__dict__)
+        except Exception:
+            sys.modules.pop(self.NAME, None)
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        for name in set(sys.modules) - self._before:
+            sys.modules.pop(name, None)
+        return False
+
+
 def self_test():
     """Run every module self test that works without a UI."""
     results = OrderedDict()
     for label, module in (("m2", m2), ("m3", m3), ("m4", m4),
                           ("m5", m5), ("m5b", m5b), ("m6", m6)):
-        runner = getattr(module, "run_self_test", None) if module else None
-        if runner is None:
+        if module is None:
             results[label] = "unavailable"
             continue
+        runner = getattr(module, "run_self_test", None)
+        if runner is None:
+            results[label] = "no self test"
+            continue
         try:
-            results[label] = "PASS" if runner() else "FAIL"
+            if module is m5b:
+                with _HeadlessBridge():
+                    results[label] = "PASS" if runner() else "FAIL"
+            else:
+                results[label] = "PASS" if runner() else "FAIL"
         except Exception as exc:
             results[label] = "ERROR: %s" % exc
     print("")

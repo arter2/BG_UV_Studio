@@ -65,24 +65,43 @@ The layering is good. M3, M4 and M6 have no Maya dependency, so they are testabl
 
 ## 3. Refactoring strategy (ordered, each step behavior-neutral)
 
-1. **Restore the source tree.** Recover the 9 module sources and the build script from wherever they are built. Commit them as `uvstudio/*.py` and treat the bundle as a build artifact. Nothing below is safe to do by hand-editing the bundle.
-2. **Add a headless test entry.** Install Maya stubs in `bootstrap` before exec (what M5b already does in its test) so M2's data classes load. Move `run_self_test` into `tests/` and remove the "unavailable" cases.
-3. **Consolidate shared helpers** into `_compat.py`: `_enum`, `_NullChunk`, `_maya`, `_sibling`. Import instead of copy.
+1. **Restore the source tree.** *Done (see section 4).*
+2. **Fix the headless test entry.** *Done for M5b.* Still to do: give M3 (the packer, the most testable module) a `run_self_test`, or better, move the embedded tests into `tests/` and run them with pytest.
+3. **Share duplicated helpers.** *Done for `_enum`*, using a build-time `# @include`. `_NullChunk` (8 trivial lines, two copies) is not worth sharing.
 4. **Replace runtime monkeypatching** with constructor injection: `m1.show(panel_factory=..., map_factory=...)`.
-5. **Split the large modules along seams that already exist.** M5c becomes `panel/{icons,sections,tool_row,recipe_panel}`. M5b becomes one file per tool family. `_build_cell` and `_paint_into` become small helpers.
+5. **Split the large modules along seams that already exist.** M5c becomes `panel/{icons,sections,tool_row,recipe_panel}`. M5b becomes one file per tool family. `_build_cell` and `_paint_into` become small helpers. Each split needs an in-Maya smoke test, because the Qt code has no headless coverage.
 6. **Tighten error handling.** Keep `except Exception` at Maya and Qt boundaries. Route the 35 `pass` handlers through one `_swallow(log, where)` helper so failures at least reach the log.
 7. **Profile in Maya** (`cProfile` around pack, load and transfer) before optimizing anything in section 2's bottleneck list.
+8. **Delete the old copies** (`uvstudio_v4_7.py`, `uvstudio_v5_1.py`, `BG_UV_Studio.py`); git history already keeps them. Not done here, pending your OK.
 
-## 4. Improved code (applied in this change)
+## 4. Improved code (applied)
 
-Only two changes, both to `uvstudio_v7_7.py`. Neither changes runtime behavior.
+**Source tree and build (steps 1 and 3).**
+- `src/uvstudio/*.py` are the nine modules, extracted from the bundle.
+- `tools/bundle_head.py.in` and `tools/bundle_tail.py.in` hold the loader and wiring.
+- `tools/build.py` regenerates `uvstudio_v7_7.py`. `--check` fails if the bundle is out of date.
+- The rebuild was verified byte-identical to the shipped bundle before any edit.
+- `_enum` now lives once, in `src/uvstudio/_shared/qt_enum.py`. The build inlines it into M1 and M5c. A runtime import between modules would couple their load failures.
 
-1. `_register_source()` puts each embedded source into `linecache`. Tracebacks now show source lines for bundled code.
-2. The header now says "9 modules" instead of "7".
+**Headless self test (step 2).**
+- `self_test()` now loads M2 against stub `maya` modules just for M5b's test, then removes them.
+- M5b's full handler suite now runs and passes: 0 failures, including the registration checks.
+- A module that loaded but has no test (M3) now reports "no self test" instead of "unavailable".
 
-Verification (headless, Python 3):
-- The bundle parses.
-- `self_test()` gives the same results before and after the change.
-- The M4, M5 and M6 tests pass. The M2, M3 and M5b results are the pre-existing ones from section 2, item 1.
+**Traceback source lines.** `_register_source()` puts each embedded source into `linecache`.
 
-I did not attempt a larger rewrite of the 17.6k-line generated file. Without the module sources, a hand rewrite would be discarded by the next build and could not be verified without Maya.
+**Docs.** The header now says 9 modules, lists M9, points to `m4.run_self_test()` (M3 has none) and gives the correct test-suite count.
+
+**CI.** `.github/workflows/check.yml` runs `build.py --check` and the headless self tests on every push.
+
+**Verification (headless, Python 3):**
+- All nine embedded module sources are byte-identical before and after (`_SOURCES` compared), so the tool's runtime behavior is unchanged.
+- Only the bundle header docstring and `self_test()` changed.
+- `self_test()`: m4, m5, m5b and m6 PASS; m2 unavailable (needs Maya); m3 no self test.
+- `sys.modules` and `status()` are unchanged after the test run.
+
+Nothing was run inside Maya.
+
+## Workflow from now on
+
+Edit `src/uvstudio/...`, run `python tools/build.py`, then commit both the sources and the rebuilt bundle.

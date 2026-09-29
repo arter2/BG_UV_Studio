@@ -1,0 +1,19 @@
+name: check
+on: [push, pull_request]
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Bundle matches src/
+        run: python tools/build.py --check
+      - name: Headless self tests
+        run: |
+          python -c "
+          import sys, uvstudio_v7_7 as u
+          r = u.self_test()
+          sys.exit(any(v not in ('PASS', 'unavailable', 'no self test') for v in r.values()))
+          "

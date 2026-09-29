@@ -1,0 +1,279 @@
+
+
+# =====================================================================
+# Bootstrap
+# =====================================================================
+
+def _register_source(name, source):
+    """Let tracebacks show source lines for code exec'd from a string.
+
+    Without this every frame inside the embedded modules prints with no source
+    line, which makes field bug reports much harder to read. Purely cosmetic:
+    nothing executes differently.
+    """
+    try:
+        import linecache
+        filename = "<uvstudio:%s>" % name
+        linecache.cache[filename] = (len(source), None,
+                                     source.splitlines(True), filename)
+    except Exception:
+        pass
+
+
+def _bootstrap():
+    """Execute each embedded source into its own module object.
+
+    Module objects are all registered BEFORE any source runs, so cross-imports
+    resolve however the modules happen to import each other.
+
+    A module that fails to execute is recorded rather than raised. The panel
+    needs PySide; the packer and recipe do not. A headless mayapy session
+    should still get the parts that work instead of nothing at all.
+    """
+    # Always replace. This file IS the source of truth, so running it again -
+    # which for this workflow means pasting a new build into the Script Editor
+    # - must mean "use this code", not "keep whatever loaded first". Skipping
+    # already-registered modules made every fix appear not to work until Maya
+    # was restarted.
+    for name in _SOURCES:
+        module = types.ModuleType(name)
+        module.__dict__["__name__"] = name
+        module.__dict__["__file__"] = "<uvstudio bundle>"
+        sys.modules[name] = module
+
+    for name, source in _SOURCES.items():
+        module = sys.modules[name]
+        _register_source(name, source)
+        try:
+            exec(compile(source, "<uvstudio:%s>" % name, "exec"),
+                 module.__dict__)
+        except Exception as exc:
+            _BOOTSTRAP_ERRORS[name] = "%s: %s" % (type(exc).__name__, exc)
+            # Remove the half-built module. Leaving it registered means a
+            # later "import uvstudio_m2_scene_bridge" succeeds and hands back
+            # an empty namespace, which fails much further from the cause.
+            sys.modules.pop(name, None)
+
+
+_bootstrap()
+
+m1 = sys.modules.get("uvstudio_m1_hosted_editor")
+m2 = sys.modules.get("uvstudio_m2_scene_bridge")
+m3 = sys.modules.get("uvstudio_m3_packer_core")
+m4 = sys.modules.get("uvstudio_m4_recipe")
+m5 = sys.modules.get("uvstudio_m5_ui")
+m5b = sys.modules.get("uvstudio_m5b_handlers")
+m5c = sys.modules.get("uvstudio_m5c_panel")
+m9 = sys.modules.get("uvstudio_m9_cluster_map")
+m6 = sys.modules.get("uvstudio_m6_texture")
+
+
+# =====================================================================
+# Wiring
+# =====================================================================
+
+_SESSION = None
+
+
+class Session(object):
+    """Everything one open window needs, kept together.
+
+    The recipe lives here rather than in the panel so history survives the
+    window being closed and reopened. Closing a tool window is not a decision
+    to discard an afternoon's work.
+    """
+
+    def __init__(self):
+        self.bridge = m2.SceneBridge()
+        self.recipe = m4.Recipe("UV Studio session")
+        self.prefs = m5.Preferences()
+        self.prefs.load()
+        self.runner = m5.ToolRunner(bridge=self.bridge, recipe=self.recipe,
+                                    prefs=self.prefs)
+        self.registered = m5b.register(self.runner)
+
+
+def _panel_factory(env, resolved):
+    """Build the rich tools panel M1 will host.
+
+    M1 calls ToolsPanel(env, resolved); this matches that signature and
+    returns the full panel instead, so M1 needs no knowledge of M5.
+    """
+    global _SESSION
+    if _SESSION is None:
+        _SESSION = Session()
+    panel = m5c.UVStudioToolsPanel(env=env, resolved=resolved,
+                                   runner=_SESSION.runner, registry=m5)
+    _SESSION.runner.log = panel.log
+    return panel
+
+
+def _map_factory():
+    """Cluster Map bound to the same runner and bridge as the tools panel,
+    so a drag on the map is one more way to press a tool - same undo, same
+    recipe, same selection rules."""
+    global _SESSION
+    if _SESSION is None:
+        _SESSION = Session()
+    return m9.ClusterMap(runner=_SESSION.runner, bridge=_SESSION.bridge)
+
+
+def _install_panel():
+    if m1 is None or m5c is None or _BOOTSTRAP_ERRORS.get("uvstudio_m5c_panel"):
+        return False
+    m1.ToolsPanel = _panel_factory
+    ok_map = (m9 is not None and not _BOOTSTRAP_ERRORS.get(
+        "uvstudio_m9_cluster_map") and hasattr(m9, "ClusterMap"))
+    m1.MapFactory = _map_factory if ok_map else None
+    m1.ViewBarFactory = lambda panel: m5c.SelectionModeStrip(panel)
+    return True
+
+
+# =====================================================================
+# Entry points
+# =====================================================================
+
+def show(fresh=True):
+    """Open UV Studio.
+
+    fresh=True discards any session from a previous paste. The session holds a
+    CommandResolver and a Preferences object built at construction, so reusing
+    one across a reload silently runs the old resolution table against the new
+    button registry.
+    """
+    global _SESSION
+    if fresh:
+        _SESSION = None
+    if _BOOTSTRAP_ERRORS:
+        for name, error in _BOOTSTRAP_ERRORS.items():
+            print("UV Studio: %s did not load - %s" % (name, error))
+    if m1 is None:
+        raise RuntimeError("UV Studio failed to load: %s"
+                           % dict(_BOOTSTRAP_ERRORS))
+    _install_panel()
+    return m1.show()
+
+
+def close():
+    """Close UV Studio and save preferences."""
+    if _SESSION is not None:
+        _SESSION.prefs.save()
+    if m1 is not None:
+        m1.close()
+
+
+def session():
+    """The live Session, or None if the window has never been opened."""
+    return _SESSION
+
+
+def recipe():
+    """The current recipe, for inspection or export."""
+    return _SESSION.recipe if _SESSION else None
+
+
+def status():
+    """What loaded and what did not."""
+    report = OrderedDict()
+    for name in _SOURCES:
+        module = sys.modules.get(name)
+        report[name] = (_BOOTSTRAP_ERRORS.get(name)
+                        or ("loaded v%s" % getattr(module, "__version__", "?")))
+    return report
+
+
+def parity(write=True):
+    """Compare every option window with this Maya's own commands.
+
+    Prints the report, and writes it beside the preferences so it can be
+    copied off a machine with no IDE. Run from the Script Editor:
+        uvstudio.parity()
+    """
+    resolver = _SESSION.bridge.cmd if _SESSION else m2.CommandResolver()
+    rows = m5.parity_report(resolver)
+    text = m5.format_parity(rows)
+    print(text)
+    if write:
+        try:
+            import os
+            import maya.cmds as cmds
+            folder = os.path.join(cmds.internalVar(userAppDir=True), "uvstudio")
+            if not os.path.isdir(folder):
+                os.makedirs(folder)
+            path = os.path.join(folder, "uvstudio_parity.txt")
+            with open(path, "w") as handle:
+                handle.write(text)
+            print("Written: %s" % path)
+        except Exception as exc:
+            print("Could not write the report: %s" % exc)
+    return rows
+
+
+class _HeadlessBridge(object):
+    """Load M2 against stub maya modules for the duration of one test.
+
+    Outside Maya, M2 fails at import and _bootstrap drops it, so M5b's test -
+    which needs M2's pure data classes and drives every handler through a fake
+    bridge - reported FAIL without running a single case. The stubs and the
+    test-only M2 are removed afterwards, so status() and show() still see the
+    real state. Inside Maya M2 is already loaded and this does nothing.
+    """
+
+    NAME = "uvstudio_m2_scene_bridge"
+
+    def __enter__(self):
+        self._before = set(sys.modules)
+        if m2 is not None or m5b is None:
+            return self
+        m5b._install_test_stubs()
+        module = types.ModuleType(self.NAME)
+        module.__dict__["__file__"] = "<uvstudio bundle>"
+        sys.modules[self.NAME] = module
+        try:
+            exec(compile(_SOURCES[self.NAME], "<uvstudio:%s>" % self.NAME,
+                         "exec"), module.__dict__)
+        except Exception:
+            sys.modules.pop(self.NAME, None)
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_tb):
+        for name in set(sys.modules) - self._before:
+            sys.modules.pop(name, None)
+        return False
+
+
+def self_test():
+    """Run every module self test that works without a UI."""
+    results = OrderedDict()
+    for label, module in (("m2", m2), ("m3", m3), ("m4", m4),
+                          ("m5", m5), ("m5b", m5b), ("m6", m6)):
+        if module is None:
+            results[label] = "unavailable"
+            continue
+        runner = getattr(module, "run_self_test", None)
+        if runner is None:
+            results[label] = "no self test"
+            continue
+        try:
+            if module is m5b:
+                with _HeadlessBridge():
+                    results[label] = "PASS" if runner() else "FAIL"
+            else:
+                results[label] = "PASS" if runner() else "FAIL"
+        except Exception as exc:
+            results[label] = "ERROR: %s" % exc
+    print("")
+    for label, outcome in results.items():
+        print("  %-5s %s" % (label, outcome))
+    return results
+
+
+if __name__ == "__main__":
+    try:
+        import maya.cmds                                  # noqa: F401
+        show()
+    except ImportError:
+        print("UV Studio %s (%s) - not running inside Maya." % (__version__,
+                                                                BUILD_STAMP))
+        for name, state in status().items():
+            print("  %-30s %s" % (name, state))
