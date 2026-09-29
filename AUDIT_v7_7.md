@@ -66,11 +66,11 @@ The layering is good. M3, M4 and M6 have no Maya dependency, so they are testabl
 ## 3. Refactoring strategy (ordered, each step behavior-neutral)
 
 1. **Restore the source tree.** *Done (see section 4).*
-2. **Fix the headless test entry.** *Done for M5b.* Still to do: give M3 (the packer, the most testable module) a `run_self_test`, or better, move the embedded tests into `tests/` and run them with pytest.
+2. **Fix the headless test entry.** *Done.* M5b's suite now runs headless, and M3 has 19 tests in `tests/test_m3_packer.py` (standard-library `unittest`, run in CI). Still to do: move the other embedded self tests out of the shipped modules into `tests/`.
 3. **Share duplicated helpers.** *Done for `_enum`*, using a build-time `# @include`. `_NullChunk` (8 trivial lines, two copies) is not worth sharing.
 4. **Replace runtime monkeypatching** with constructor injection: `m1.show(panel_factory=..., map_factory=...)`.
 5. **Split the large modules along seams that already exist.** M5c becomes `panel/{icons,sections,tool_row,recipe_panel}`. M5b becomes one file per tool family. `_build_cell` and `_paint_into` become small helpers. Each split needs an in-Maya smoke test, because the Qt code has no headless coverage.
-6. **Tighten error handling.** Keep `except Exception` at Maya and Qt boundaries. Route the 35 `pass` handlers through one `_swallow(log, where)` helper so failures at least reach the log.
+6. **Tighten error handling.** *Done where it matters.* I reviewed all 35 `except Exception: pass` handlers. About 30 are best-effort cleanup (deleting temp nodes or UI, closing undo chunks, restoring selection) and are correct as they are. The recipe-listing one already records `readable=False`. The four that silently dropped data now log at DEBUG: M5b's per-press UV cache, and the M9 map's UV read, per-unit UVs and post-drag reload. Nothing prints by default; turn it on with `logging.getLogger("uvstudio").setLevel(logging.DEBUG)`.
 7. **Profile in Maya** (`cProfile` around pack, load and transfer) before optimizing anything in section 2's bottleneck list.
 8. **Delete the old copies** (`uvstudio_v4_7.py`, `uvstudio_v5_1.py`, `BG_UV_Studio.py`); git history already keeps them. Not done here, pending your OK.
 
@@ -88,6 +88,10 @@ The layering is good. M3, M4 and M6 have no Maya dependency, so they are testabl
 - M5b's full handler suite now runs and passes: 0 failures, including the registration checks.
 - A module that loaded but has no test (M3) now reports "no self test" instead of "unavailable".
 
+**Packer tests (step 2).** `tests/test_m3_packer.py` has 19 tests of M3's current behavior: UDIM math, bitmaps, rects, overlap and out-of-bounds checks, align, and `pack()`. For `pack()` they check that every shell stays inside its tile, never overlaps another, keeps its size unless scale-to-fit is on, and that overflow is returned or spills into the next UDIM. As a sanity check, I deliberately broke the placement transform, and 4 of the 8 packing tests failed.
+
+**Diagnostic logging (step 6).** Four silent handlers on data paths now log at DEBUG, as described in step 6. This is the only change to embedded module code: two `import logging` lines, two logger definitions and four handler bodies. Each handler returns exactly what it did before.
+
 **Traceback source lines.** `_register_source()` puts each embedded source into `linecache`.
 
 **Docs.** The header now says 9 modules, lists M9, points to `m4.run_self_test()` (M3 has none) and gives the correct test-suite count.
@@ -95,9 +99,10 @@ The layering is good. M3, M4 and M6 have no Maya dependency, so they are testabl
 **CI.** `.github/workflows/check.yml` runs `build.py --check` and the headless self tests on every push.
 
 **Verification (headless, Python 3):**
-- All nine embedded module sources are byte-identical before and after (`_SOURCES` compared), so the tool's runtime behavior is unchanged.
+- After the second pass, all nine embedded module sources were byte-identical to v7.7 (`_SOURCES` compared). The third pass then changed M5b and M9, but only by adding the DEBUG logging described above.
 - Only the bundle header docstring and `self_test()` changed.
-- `self_test()`: m4, m5, m5b and m6 PASS; m2 unavailable (needs Maya); m3 no self test.
+- `self_test()`: m4, m5, m5b and m6 PASS; m2 unavailable (needs Maya); m3 no embedded self test (it is covered by `tests/`).
+- `python -m unittest discover -s tests`: 19 tests pass.
 - `sys.modules` and `status()` are unchanged after the test run.
 
 Nothing was run inside Maya.

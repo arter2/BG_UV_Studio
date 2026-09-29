@@ -17,3 +17,5 @@ jobs:
           r = u.self_test()
           sys.exit(any(v not in ('PASS', 'unavailable', 'no self test') for v in r.values()))
           "
+      - name: Packer tests
+        run: python -m unittest discover -s tests -v

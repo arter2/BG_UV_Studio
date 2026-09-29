@@ -69,12 +69,18 @@ Target: Python 3.7+ (Maya 2022) and later
 from __future__ import annotations
 
 import functools
+import logging
 import os
 import math
 import sys
 from collections import OrderedDict
 
 __version__ = "2.24.0"
+
+# Failures the code deliberately survives are logged at DEBUG, which prints
+# nothing by default. To see them, run in the Script Editor:
+#     import logging; logging.getLogger("uvstudio").setLevel(logging.DEBUG)
+_log = logging.getLogger("uvstudio.m5b")
 MODULE_ID = "M5b"
 
 
@@ -348,7 +354,8 @@ class _Run(object):
                         _sh, us, vs = bridge_module.extract_shells(mesh)
                         cache[mesh] = (us, vs)
                     except Exception:
-                        pass
+                        _log.debug("UVs unreadable for %s; skipped", mesh,
+                                   exc_info=True)
             self._uv_cache = cache
         return cache
 

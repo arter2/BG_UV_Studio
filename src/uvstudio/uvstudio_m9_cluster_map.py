@@ -44,11 +44,17 @@ Target: Python 3.7+ (Maya 2022), PySide2 and PySide6
 
 from __future__ import annotations
 
+import logging
 import math
 import sys
 from collections import OrderedDict
 
 __version__ = "1.15.0"
+
+# Failures the code deliberately survives are logged at DEBUG, which prints
+# nothing by default. To see them, run in the Script Editor:
+#     import logging; logging.getLogger("uvstudio").setLevel(logging.DEBUG)
+_log = logging.getLogger("uvstudio.m9")
 MODULE_ID = "M9"
 
 QT_BINDING = None
@@ -924,7 +930,8 @@ class ClusterMap(_Widget):
                     _sh, us, vs = bridge_module.extract_shells(mesh)
                     coords[mesh] = (us, vs)
                 except Exception:
-                    pass
+                    _log.debug("UVs unreadable for %s; skipped", mesh,
+                               exc_info=True)
         families = duplicate_families(report.get("shells", []), bridge_module)
         # Remember the selection by SHELL IDENTITY (anchor), not by unit
         # index. Indices are rebuilt on every load and shift whenever the
@@ -952,7 +959,8 @@ class ClusterMap(_Widget):
             try:
                 self._unit_uvs[unit.index] = unit.by_mesh()
             except Exception:
-                pass
+                _log.debug("no UVs for map unit %s", unit.index,
+                           exc_info=True)
         if self.texture_mode != "off":
             # Re-warp after every load, so an edit on the map is reflected
             # in the "after transfer" preview straight away.
@@ -1161,7 +1169,8 @@ class ClusterMap(_Widget):
                     self.load(self.bridge.analyse_many(self._meshes),
                               keep_view=True)
                 except Exception:
-                    pass
+                    _log.debug("map reload after a drag failed",
+                               exc_info=True)
 
     def _select_for_command(self):
         """Make Maya's selection the map's selected units' UVs.
