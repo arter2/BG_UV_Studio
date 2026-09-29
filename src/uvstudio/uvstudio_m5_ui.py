@@ -1545,6 +1545,11 @@ PANEL_LAYOUT = OrderedDict([
             r_row("Density", [c_num("check_density", "map_size", 1, 0),
                               c_run("check_density", "Audit", None, 1.2)]),
         ]),
+        # Every press, its result and what a check found, in the tab where
+        # checks are run. Info > Log shows the same lines.
+        ("Log", [
+            r_grid(1, [c_widget("log")]),
+        ]),
     ]),
     ("Texture", [
         ("Textures", [

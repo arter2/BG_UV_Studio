@@ -7248,6 +7248,11 @@ PANEL_LAYOUT = OrderedDict([
             r_row("Density", [c_num("check_density", "map_size", 1, 0),
                               c_run("check_density", "Audit", None, 1.2)]),
         ]),
+        # Every press, its result and what a check found, in the tab where
+        # checks are run. Info > Log shows the same lines.
+        ("Log", [
+            r_grid(1, [c_widget("log")]),
+        ]),
     ]),
     ("Texture", [
         ("Textures", [
@@ -11280,6 +11285,7 @@ Target: Maya 2022 - 2025+ (PySide2 and PySide6)
 from __future__ import annotations
 
 import ast
+import logging
 import sys
 import traceback
 from collections import OrderedDict
@@ -13853,6 +13859,8 @@ class UVStudioToolsPanel(_Widget):
         if result.ok:
             self.log("OK", "%s  %s" % (result.message,
                                        self._format_detail(result.detail)))
+            for line in detail_lines(result.detail):
+                self.log("DETAIL", line)
             if tool_id == "analyze":
                 self._set_counters(result.detail)
             self._refresh_map_after(tool_id)
@@ -14039,6 +14047,11 @@ class UVStudioToolsPanel(_Widget):
         view = getattr(self, "log_view", None)
         if view is not None:
             view.appendPlainText(line)
+        for box in getattr(self, "_log_boxes", ()):
+            try:
+                box.append(line)
+            except RuntimeError:
+                pass                # the box's widget was deleted
         status = getattr(self, "status", None)
         if status is not None:
             status.setText(line)
@@ -14126,6 +14139,168 @@ class LayoutSection(_Widget):
         if self.panel.prefs is not None:
             self.panel.prefs.set_collapsed(self.tab, self.title, not show)
             self.panel.save_prefs()
+
+
+class _PanelLogHandler(logging.Handler):
+    """Forwards the "uvstudio" logger into the panel log while Details is on.
+
+    The modules log what they deliberately skip - a mesh whose UVs could not
+    be read, a map reload that failed, a press with nothing selected - at
+    DEBUG, which prints nothing by default. This is how those lines reach
+    the panel without the artist typing into the Script Editor.
+    """
+
+    MARKER = "_uvstudio_panel_handler"
+
+    def __init__(self):
+        super(_PanelLogHandler, self).__init__(logging.DEBUG)
+        setattr(self, self.MARKER, True)
+        self.panel = None
+
+    def emit(self, record):
+        panel = self.panel
+        if panel is None:
+            return
+        try:
+            text = record.getMessage()
+            if record.exc_info:
+                text += "\n" + "".join(
+                    traceback.format_exception(*record.exc_info)).rstrip()
+            panel.log("DEBUG", text)
+        except Exception:
+            pass            # a deleted panel must not break the tool logging
+
+
+def set_debug_target(panel):
+    """Send "uvstudio" DEBUG records to `panel`, or stop (panel=None).
+
+    The handler is found by a marker attribute rather than by class, because
+    each paste of the bundle defines the class afresh and an old handler
+    from the previous paste would otherwise stay attached. Propagation is
+    switched off while it is on so Maya's own root handler does not echo
+    every line into the Script Editor.
+    """
+    logger = logging.getLogger("uvstudio")
+    handlers = [h for h in logger.handlers
+                if getattr(h, _PanelLogHandler.MARKER, False)]
+    if panel is None:
+        for handler in handlers:
+            logger.removeHandler(handler)
+        logger.setLevel(logging.NOTSET)
+        logger.propagate = True
+        return
+    for handler in handlers[1:]:
+        logger.removeHandler(handler)
+    handler = handlers[0] if handlers else None
+    if handler is None:
+        handler = _PanelLogHandler()
+        logger.addHandler(handler)
+    handler.panel = panel
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
+
+def detail_lines(detail, limit=12):
+    """Readable lines for the list and dict values in a tool's result.
+
+    The one-line summary after a press leaves lists out, which for a check
+    is the whole answer: which shells overlap, which are flipped. These go
+    to the log under it, first `limit` entries each.
+    """
+    lines = []
+    if not isinstance(detail, dict):
+        return lines
+    for key, value in detail.items():
+        if isinstance(value, dict):
+            entries = ["%s=%s" % (k, v) for k, v in value.items()]
+        elif isinstance(value, (list, tuple, set)):
+            entries = [str(v) for v in value]
+        else:
+            continue
+        if not entries:
+            lines.append("%s: none" % key)
+            continue
+        shown = ", ".join(entries[:limit])
+        more = len(entries) - limit
+        lines.append("%s: %d - %s%s" % (key, len(entries), shown[:400],
+                                        " (+%d more)" % more if more > 0
+                                        else ""))
+    return lines
+
+
+class LogBox(_Widget):
+    """The panel log, on the Checks tab where audits are run.
+
+    Shows the same lines as Info > Log - every press, its result and
+    findings, every warning - in the tab the artist is looking at. Warnings
+    only filters to problems; Details adds the DEBUG lines the modules log
+    about what they skipped.
+    """
+
+    MIN_HEIGHT = 240
+
+    def __init__(self, panel, parent=None):
+        super(LogBox, self).__init__(parent)
+        self.panel = panel
+        lay = QtWidgets.QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(4)
+        self.view = QtWidgets.QPlainTextEdit()
+        self.view.setReadOnly(True)
+        self.view.setMinimumHeight(self.MIN_HEIGHT)
+        lay.addWidget(self.view, 1)
+
+        row = QtWidgets.QHBoxLayout()
+        row.setSpacing(6)
+        self.problems_only = QtWidgets.QCheckBox("Warnings only")
+        self.problems_only.toggled.connect(self.refill)
+        self.details = QtWidgets.QCheckBox("Details")
+        self.details.setToolTip("Also show what the tools skipped and why "
+                                "(unreadable meshes, empty selections).")
+        self.details.toggled.connect(self._set_details)
+        copy = QtWidgets.QPushButton("Copy")
+        copy.setToolTip("Copy the whole log to the clipboard.")
+        copy.clicked.connect(self._copy)
+        clear = QtWidgets.QPushButton("Clear")
+        clear.clicked.connect(self._clear)
+        for widget in (self.problems_only, self.details):
+            row.addWidget(widget)
+        row.addStretch(1)
+        for button in (copy, clear):
+            button.setFixedHeight(ROW_HEIGHT)
+            row.addWidget(button)
+        lay.addLayout(row)
+        self.setMinimumHeight(self.MIN_HEIGHT + ROW_HEIGHT + 8)
+        self.refill()
+
+    def accepts(self, line):
+        if not self.problems_only.isChecked():
+            return True
+        return line.startswith(("[WARN]", "[ERROR]"))
+
+    def append(self, line):
+        if self.accepts(line):
+            self.view.appendPlainText(line)
+
+    def refill(self, *_):
+        self.view.clear()
+        for line in self.panel.embed_log:
+            self.append(line)
+
+    def _copy(self):
+        QtWidgets.QApplication.clipboard().setText(
+            "\n".join(self.panel.embed_log))
+
+    def _clear(self):
+        del self.panel.embed_log[:]
+        self.view.clear()
+        info = getattr(self.panel, "log_view", None)
+        if info is not None:
+            info.clear()
+
+    def _set_details(self, on):
+        set_debug_target(self.panel if on else None)
+        self.panel.log("INFO", "Details %s" % ("on" if on else "off"))
 
 
 class HealthStrip(_Widget):
@@ -14330,7 +14505,7 @@ def _shrinkable(widget):
     so a row of them overflowed a 400 px panel and the right edge was cut
     off. Ignored lets the row's stretch weights decide.
     """
-    if not isinstance(widget, (QtWidgets.QLabel, PivotStrip)):
+    if not isinstance(widget, (QtWidgets.QLabel, PivotStrip, LogBox)):
         widget.setSizePolicy(
             _enum(QtWidgets.QSizePolicy, "Policy.Ignored", "Ignored"),
             _enum(QtWidgets.QSizePolicy, "Policy.Fixed", "Fixed"))
@@ -14380,6 +14555,10 @@ def _build_cell(self, cell, grid=False):
         label.setAlignment(_enum(QtCore.Qt, "AlignmentFlag.AlignCenter",
                                  "AlignCenter"))
         return label
+    if t == "widget" and cell["name"] == "log":
+        box = LogBox(self)
+        self._log_boxes = list(getattr(self, "_log_boxes", [])) + [box]
+        return box
     if t == "widget" and cell["name"] == "pivot":
         strip = PivotStrip("Layout", self.prefs, on_change=self.save_prefs,
                            panel=self)
