@@ -273,6 +273,24 @@ class _Run(object):
         except Exception:
             return False
 
+    @property
+    def has_selection(self):
+        """Is anything selected at all, object or component?
+
+        Outside Maya (tests, a fake bridge) there is no selection to ask, and
+        the answer is yes so the whole-mesh fallback behaves as it always has.
+        """
+        if not _maya_ready():
+            return True
+        try:
+            selection = _maya().ls(selection=True, long=True) or []
+            if not selection:
+                _log.debug("nothing selected; hilited: %s",
+                           _maya().ls(hilite=True, long=True))
+        except Exception:
+            return True
+        return bool(selection)
+
     def selected_shells(self):
         """Shells touched by the current UV selection, else all of them.
 
@@ -300,6 +318,17 @@ class _Run(object):
                     "Components are selected but no UVs could be resolved "
                     "from them. Select UVs or faces in the UV Editor, or "
                     "select the mesh to work on all of it.")
+            # The third cause: NOTHING is selected and the mesh is only
+            # hilited, as in component mode after a click on empty space.
+            # The guard lets that through so Pack and Preview work on the
+            # mesh being edited, but for a tool that acts on the selection
+            # it is not "the whole mesh" - Rotate turned every shell on the
+            # sheet when the artist had meant one.
+            if not self.has_selection:
+                raise RuntimeError(
+                    "Nothing is selected. Select shells, UVs or faces in "
+                    "the UV Editor, or select the mesh to work on all of "
+                    "it.")
             return self.shells
         touched = [s for s in self.shells
                    if s.mesh in selected
