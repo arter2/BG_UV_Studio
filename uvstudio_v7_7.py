@@ -13839,6 +13839,11 @@ class UVStudioToolsPanel(_Widget):
         self.log("INFO", "Running %s%s" % (tool_id,
                                            " with overrides" if overrides
                                            else ""))
+        if not self._push_map_selection():
+            self.log("WARN", "%s: the shells selected on the Cluster Map "
+                             "could not be selected in Maya, so nothing was "
+                             "run." % tool_id)
+            return
         try:
             result = self.runner.run(tool_id, overrides)
         except Exception:
@@ -13858,6 +13863,27 @@ class UVStudioToolsPanel(_Widget):
                 self.recipe_panel.refresh()
         else:
             self.log("WARN", result.message)
+
+    @staticmethod
+    def _push_map_selection():
+        """Make the Cluster Map's selected shells Maya's selection.
+
+        The map keeps its own selection and only handed it to Maya on a drag
+        on the map. A panel button pressed while the map was showing ran
+        against Maya's selection instead - the meshes that were selected to
+        load the map - so Rotate turned every shell on them. Returns False
+        only when the map has a selection that could not be pushed, so the
+        caller runs nothing rather than the wrong target.
+        """
+        host = getattr(sys.modules.get("uvstudio_m1_hosted_editor"),
+                       "_HOST", None)
+        if host is None or getattr(host, "view", None) != "map":
+            return True
+        view = getattr(host, "map_widget", None)
+        controller = getattr(view, "controller", None)
+        if controller is None or not controller.selected_units():
+            return True
+        return bool(view._select_for_command())
 
     def _refresh_map_after(self, tool_id):
         """A tool that changed UVs makes the map's picture stale. Redraw it
