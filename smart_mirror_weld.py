@@ -4,11 +4,11 @@ Smart Mirror & Weld  -  Maya 2022+
 Mirrors the selected polygon mesh(es) across a world axis, combines the
 original with the mirrored copy and welds the seam vertices.
 
-Usage: paste into a Python tab of the Script Editor and run, or put this file
-on your PYTHONPATH and run:
+Usage: paste into a *Python* tab of the Script Editor and run (Ctrl+Enter).
+Or save this file to your Maya scripts folder and run:
 
-    import smart_mirror_weld
-    smart_mirror_weld.show()
+    import smart_mirror_weld      # opens the window on first import
+    smart_mirror_weld.show()      # reopen it any time after that
 
 Works with Maya 2022's Python 3 (default) and Python 2 (-pythonver 2) modes.
 """
@@ -18,8 +18,9 @@ import traceback
 
 from maya import cmds
 import maya.api.OpenMaya as om2
-from maya.app.general.mayaMixin import MayaQWidgetBaseMixin
+import maya.OpenMayaUI as omui
 from PySide2 import QtCore, QtWidgets
+import shiboken2
 
 
 WINDOW_OBJECT_NAME = "SmartMirrorWeldWindow"
@@ -177,10 +178,17 @@ def mirror_and_weld(target, axis="x", plane_mode=PLANE_PIVOT, combine=True,
 # -----------------------------------------------------------------------------
 # UI
 # -----------------------------------------------------------------------------
-class SmartMirrorTool(MayaQWidgetBaseMixin, QtWidgets.QDialog):
+def _maya_main_window():
+    ptr = omui.MQtUtil.mainWindow()
+    if ptr is None:
+        return None
+    return shiboken2.wrapInstance(int(ptr), QtWidgets.QWidget)
+
+
+class SmartMirrorTool(QtWidgets.QDialog):
 
     def __init__(self, parent=None):
-        super(SmartMirrorTool, self).__init__(parent)
+        super(SmartMirrorTool, self).__init__(parent or _maya_main_window())
         self.setObjectName(WINDOW_OBJECT_NAME)
         self.setWindowTitle("Smart Mirror & Weld")
         self.setWindowFlags(QtCore.Qt.Window | QtCore.Qt.Tool)
@@ -211,7 +219,7 @@ class SmartMirrorTool(MayaQWidgetBaseMixin, QtWidgets.QDialog):
         mirror_form.addRow("Axis:", axis_row)
 
         self.plane_combo = QtWidgets.QComboBox()
-        self.plane_combo.addItems(PLANE_MODES)
+        self.plane_combo.addItems(list(PLANE_MODES))
         self.plane_combo.setToolTip(
             "Where the mirror plane sits along the chosen axis."
         )
@@ -390,18 +398,34 @@ class SmartMirrorTool(MayaQWidgetBaseMixin, QtWidgets.QDialog):
         self._set_status(message)
 
 
+# Keep a module-level reference so the window is never garbage collected.
+try:
+    _window
+except NameError:
+    _window = None
+
+
 def show():
     """Open the tool, replacing any window that is already open."""
-    app = QtWidgets.QApplication.instance()
-    for widget in app.topLevelWidgets():
-        if widget.objectName() == WINDOW_OBJECT_NAME:
-            widget.close()
-            widget.deleteLater()
+    global _window
+    try:
+        for widget in QtWidgets.QApplication.instance().topLevelWidgets():
+            try:
+                if widget.objectName() == WINDOW_OBJECT_NAME:
+                    widget.close()
+                    widget.deleteLater()
+            except RuntimeError:  # C++ object already deleted
+                pass
 
-    window = SmartMirrorTool()
-    window.show()
-    return window
+        _window = SmartMirrorTool()
+        _window.show()
+        _window.raise_()
+        _window.activateWindow()
+    except Exception as exc:
+        traceback.print_exc()
+        cmds.warning("Smart Mirror: could not open window: {0}".format(exc))
+        _window = None
+    return _window
 
 
-if __name__ == "__main__":
-    smart_mirror_win = show()
+show()
